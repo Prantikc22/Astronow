@@ -1,0 +1,41 @@
+{
+  "summary": "First full test pass on Cosmic Clarity. Backend: 22/22 pytest cases pass covering auth/login, /auth/me, terminology (simple/traditional/both), config, geo search, chart/today/dasha/transits/panchang/numerology, tarot draw, compatibility (Guna Milan, score 0-36), vastu analyze (score+findings), conversations & message (AI reply OK), entitlement read, and signup smoke. Frontend: Auth screen, Today dashboard (hero/insight/tarot/panchang/period/timing/quick links), Chart (North Indian diagram + planets + nakshatra), Dasha timeline, Numerology, Compatibility form, Tarot, Vastu grid, Paywall (3 plans + testIDs), and You tab all render correctly on 390x844 mobile viewport. Login → today greeting and full AI insight worked with the seeded test account.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/signup", "issue": "Supabase currently accepts junk domains (e.g. @x.test) with 200 — note in test_credentials.md said these would be rejected. Not blocking, but confirm Supabase project settings if strict domain validation is desired."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "app/paywall.tsx", "issue": "Tapping Continue when paywall was opened via deep link shows console error: 'The action GO_BACK was not handled by any navigator.' Entitlement sync likely still succeeds server-side but the user is left on the paywall screen. Should router.replace('/(tabs)/today') (or router.canGoBack() check) instead of router.back() when no history exists.", "testID": "paywall-continue", "priority": "MEDIUM"},
+      {"component": "app/(tabs)/ask.tsx", "issue": "On Expo web preview, after successfully sending an Ask message from the Ask tab, the URL sometimes changes to /you and the streamed reply is not shown in the Ask conversation (the AI reply text appears on Today insight instead). Likely web-only Expo Router group-tab quirk with streamChat re-render; verify on native. AI reply itself is generated (backend /message returns 200 and text).", "testID": "ask-send", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global", "issues": ["Console warning: 'shadow*' style props are deprecated. Use 'boxShadow' in React Native Web (0.75+). Non-blocking but should migrate to keep future compatibility."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Fix paywall Continue when opened via deep link: use router.canGoBack() ? router.back() : router.replace('/(tabs)/today') after entitlement sync succeeds.",
+    "Investigate Ask tab on web: after streamChat completes, the streamed assistant message should be visible in the Ask conversation list; currently the tab appears to unmount / URL shifts to /you on web preview. Test on Expo Go or a native build to confirm whether this is web-only.",
+    "Optional: migrate deprecated 'shadow*' style props to 'boxShadow' to remove React Native Web deprecation warnings."
+  ],
+  "critical_code_review_comments": [
+    "server.py is ~860 lines and mixes many domains (auth/chart/ask/vastu/entitlement/admin). Consider splitting into routers per domain (auth_router, chart_router, ask_router, etc.) for maintainability.",
+    "server.py /vastu/analyze reads r['x']+r['width']; no server-side pydantic validation of the rooms schema. If a caller sends {'w','h'} instead of {'width','height'} the endpoint 500s. Add a Room pydantic model with strict fields.",
+    "server.py uses on_event('startup'/'shutdown'); FastAPI recommends the lifespan context manager (deprecation warnings likely on newer FastAPI).",
+    "Free-tier gating counts total user messages ever ('select count(*) from messages where role=user'); soft-deleted conversations still count. If a user deletes a convo, their free counter is not reset — probably intentional but confirm product intent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_api.py (new — 22 pytest cases; JUnit XML at test_reports/pytest/pytest_results.xml)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "~90%"},
+  "seed_data_creation": "None. Used existing seeded account cosmic.tester.2026@gmail.com. Test-created rows use TEST_ prefix (compatibility partner TEST_Partner; vastu test uses save=false).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend suite lives at /app/backend/tests/test_api.py (pytest, 22 tests, ~30s). All API endpoints exercised. Frontend testIDs verified: auth-toggle-signin/create_account, auth-email/password/firstname/submit, today-hero/insight/tarot/panchang/period/timing/ask, quick-*, ask-input/send/suggest-*, paywall-close/continue, plan-monthly/annual/founder_lifetime, you-profile/subscription/viewchart/logout/delete. Two open frontend bugs: paywall GO_BACK error on deep link + Ask send URL/tab drift on web preview.",
+  "rca_of_issue": "Paywall Continue error RCA: paywall.tsx likely calls router.back() unconditionally after successful entitlement sync; when navigation history is empty (user opened paywall via deep link / 402 from Ask that trimmed history) React Navigation emits 'GO_BACK not handled'. Fix: replace with `router.canGoBack() ? router.back() : router.replace('/(tabs)/today')`."
+}

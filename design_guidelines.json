@@ -1,0 +1,143 @@
+{
+  "app_name": "Cosmic Clarity",
+  "personality": "6 Glass / Luxe DARK",
+  "personality_one_liner": "A cinematic, deeply atmospheric spiritual guide grounded in near-black spaces, celestial glassmorphism, and elegant gold/ivory contrast.",
+  "color": {
+    "surface": "#05060A",
+    "onSurface": "#E8E5DF",
+    "surfaceSecondary": "#10121C",
+    "onSurfaceSecondary": "#E8E5DF",
+    "surfaceTertiary": "#1A1D2B",
+    "onSurfaceTertiary": "#E8E5DF",
+    "surfaceInverse": "#E8E5DF",
+    "onSurfaceInverse": "#05060A",
+    "brand": "#1F1E33",
+    "onBrand": "#E8E5DF",
+    "brandPrimary": "#D0B271",
+    "onBrandPrimary": "#05060A",
+    "brandSecondary": "#584E82",
+    "onBrandSecondary": "#E8E5DF",
+    "brandTertiary": "#262240",
+    "onBrandTertiary": "#E8E5DF",
+    "success": "#3D5A46",
+    "onSuccess": "#E8E5DF",
+    "warning": "#8C6A3B",
+    "onWarning": "#E8E5DF",
+    "error": "#6E3737",
+    "onError": "#E8E5DF",
+    "info": "#2B4C5E",
+    "onInfo": "#E8E5DF",
+    "border": "#212333",
+    "borderStrong": "#3B3D55",
+    "divider": "#191B28",
+    "muted": "#8A8D9F"
+  },
+  "typography": {
+    "displayFontFamily": "Cormorant Garamond",
+    "textFontFamily": "Geist",
+    "scale": { "sm": 12, "base": 14, "lg": 16, "xl": 20, "2xl": 24 }
+  },
+  "spacing": { "rule": "Handle spacing correctly dont have extra spaces where its not required, handle padding and margin corectly and subtle for buttons and components", "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "2xl": 32, "3xl": 48 },
+  "radius_tokens": { "sm": 6, "md": 12, "lg": 20, "pill": 999 },
+  "shadow_tier": "0",
+  "navigation": "bottom_tabs",
+  "icon_set": "Feather",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": ["refer to <Glassmorphism_and_Blur>"],
+    "dont's": ["refer to <Glassmorphism_and_Blur>"]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Today",
+      "purpose": "A daily dashboard displaying energy meter, moon phase, transits, and daily reflections in a cinematic layout.",
+      "states": {
+        "loading": "Centered celestial glow or spinner",
+        "empty": "Subtle starfield illustration indicating no data available for the moment.",
+        "error": "Message in warm ivory asking to reconnect with the cosmos, plus a soft gold retry button."
+      },
+      "layout": "Hero layout with a prominent 'Moon Today' and 'Energy Meter' card using glassmorphism over a dark celestial backdrop. Sub-cards underneath for Tarot, Panchang, and Transits arranged in a 2-column grid or list depending on data density. Use heavy padding and negative space."
+    },
+    {
+      "name": "Ask",
+      "purpose": "Hero conversational AI astrology chat with suggested prompts and streaming responses.",
+      "states": {
+        "loading": "Subtle pulsating gold orb.",
+        "empty": "Suggested prompts displayed as elegant glass pill buttons over a deep indigo background.",
+        "error": "Soft retry text under a faded star icon."
+      },
+      "layout": "Full-screen chat interface. The chat bubbles float with blur/glassmorphism (brandTertiary) over a dark sky background. Suggested queries are horizontally scrollable chips at the bottom."
+    },
+    {
+      "name": "Explore",
+      "purpose": "Grid of spiritual and astrological tools: Birth Chart, Tarot, Numerology, Vastu.",
+      "states": {
+        "loading": "Skeleton grids with subtle shimmering.",
+        "empty": "Illustration of an empty star chart.",
+        "error": "Error text with a reload icon."
+      },
+      "layout": "A structured 2-column grid. Each tool card features a small, elegant celestial icon inside a tinted brandTertiary container. The background remains surfaceSecondary."
+    },
+    {
+      "name": "Calendar",
+      "purpose": "Vedic daily calendar displaying panchang and saved timings.",
+      "states": {
+        "loading": "Spinner overlaid on a calendar grid skeleton.",
+        "empty": "No saved timings yet—display a serene moon icon and brief explanation text.",
+        "error": "Retry connection button."
+      },
+      "layout": "Header with horizontal date scroller. The main body lists auspicious/inauspicious times in layered surfaceSecondary rows, with subtle colored borders or dots (success/warning hues) indicating favorability."
+    },
+    {
+      "name": "You",
+      "purpose": "Profile settings, saved profiles, and premium subscription access.",
+      "states": {
+        "loading": "Spinner centered on the screen.",
+        "empty": "No saved profiles: elegant empty state illustration.",
+        "error": "Standard error layout."
+      },
+      "layout": "Profile banner with a dark blurred background. Rows for settings and subscription tier with a 'Pro/Premium' card standing out via a metallic brandPrimary (gold) border or subtle gradient."
+    }
+  ],
+  "images": {
+    "hero_today": {
+      "url": "https://images.unsplash.com/photo-1614989799749-6c1e704dca56?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwzfHxjZWxlc3RpYWwlMjBuaWdodCUyMHNreSUyMG1vb24lMjBzdGFycyUyMGFic3RyYWN0fGVufDB8fHx8MTc4Mjg2NTkzNHww&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1614989799749-6c1e704dca56?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwzfHxjZWxlc3RpYWwlMjBuaWdodCUyMHNreSUyMG1vb24lMjBzdGFycyUyMGFic3RyYWN0fGVufDB8fHx8MTc4Mjg2NTkzNHww&ixlib=rb-4.1.0&q=85",
+      "alt": "full moon in dark night sky"
+    },
+    "tarot_card": {
+      "url": "https://images.unsplash.com/photo-1600429753199-5376c2738737?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwzfHx0YXJvdCUyMGNhcmRzJTIwdmludGFnZSUyMHNwaXJpdHVhbHxlbnwwfHx8fDE3ODkwMzc5NzF8MA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1600429753199-5376c2738737?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwzfHx0YXJvdCUyMGNhcmRzJTIwdmludGFnZSUyMHNwaXJpdHVhbHxlbnwwfHx8fDE3ODkwMzc5NzF8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "tarot card spiritual vintage"
+    },
+    "starfield_bg": {
+      "url": "https://images.unsplash.com/photo-1669764721666-915960e73e0d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwyfHxjZWxlc3RpYWwlMjBuaWdodCUyMHNreSUyMG1vb24lMjBzdGFycyUyMGFic3RyYWN0fGVufDB8fHx8MTc4Mjg2NTkzNHww&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1669764721666-915960e73e0d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwyfHxjZWxlc3RpYWwlMjBuaWdodCUyMHNreSUyMG1vb24lMjBzdGFycyUyMGFic3RyYWN0fGVufDB8fHx8MTc4Mjg2NTkzNHww&ixlib=rb-4.1.0&q=85",
+      "alt": "a moon in the sky"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly adhere to the dark, cinematic Glass/Luxe aesthetic. Do NOT use standard flat Material or iOS default colors.",
+    "BANNED: bright purple-gradient AI SaaS look, heavy generic temple graphics, saturated saffron. Keep it near-black, deep navy/indigo, ivory, and occasional gold/metallic.",
+    "IMPLEMENT a gradient-to-dark scrim pattern (top to bottom gradient stopping at >=70% surface opacity) ANY TIME text is laid over a celestial background image.",
+    "Use Cormorant Garamond for main headers and large numbers/charts. Use Geist for body, UI labels, and data points.",
+    "In the Explore grid and Today dashboard, ensure card hierarchy through sizing and negative space rather than repeating identically shaped cards.",
+    "The central 'ASK' button in the tab bar should visually pop, possibly with a subtle gold border and deep violet interior.",
+    "Rely heavily on glassmorphism (`expo-blur`) for elevated surfaces like bottom tab bars, sticky headers, and modal scrims to emphasize depth and luxury.",
+    "Ensure 'Today' dashboard has generous padding. Co-Star inspired minimal readability paired with rich, subtle Moonly-style assets.",
+    "Never use raw SVGs randomly scattered. Apply a unified iconography approach (Feather) constrained to the color tokens.",
+    "Chart and geometry rendering (e.g., North Indian birth chart, Vastu layout) should use fine 1pt borders in metallic `brandPrimary` or ivory over deeply nested `surfaceTertiary` containers."
+  ]
+}
