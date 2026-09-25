@@ -26,7 +26,7 @@ const TAGLINES = [
   "Vedic wisdom. Modern clarity.",
   "Ask anything. Tara reads your stars.",
 ];
-const PERKS: [string, string][] = [["target", "Precise Vedic chart"], ["message-circle", "Tara, your AI astrologer"], ["shield", "Private by design"]];
+const PERKS: [string, string][] = [["target", "Precise Vedic chart"], ["message-circle", "Tara, your 24x7 Astrologer"], ["shield", "Private by design"]];
 
 function friendlyAuthError(cause: any) {
   const message = String(cause?.message || "");
@@ -213,20 +213,20 @@ const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   content: { minHeight: "100%", paddingHorizontal: 20 },
   perks: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 18 },
-  perk: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 16, backgroundColor: "rgba(33,31,59,0.8)", borderWidth: 1, borderColor: colors.border },
+  perk: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 30, borderRadius: 8, backgroundColor: "rgba(33,31,59,0.8)", borderWidth: 1, borderColor: colors.border },
   sheet: { marginTop: 22, padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(17,16,42,0.94)", borderWidth: 1, borderColor: colors.borderStrong, shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
-  toggle: { flexDirection: "row", borderRadius: radii.pill, padding: 4, backgroundColor: colors.surfaceTertiary },
-  togglePill: { position: "absolute", left: 4, top: 4, bottom: 4, borderRadius: radii.pill, backgroundColor: colors.gold },
-  toggleItem: { flex: 1, height: 42, borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },
+  toggle: { flexDirection: "row", borderRadius: 12, padding: 4, backgroundColor: colors.surfaceTertiary },
+  togglePill: { position: "absolute", left: 4, top: 4, bottom: 4, borderRadius: 9, backgroundColor: colors.gold },
+  toggleItem: { flex: 1, height: 42, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   fields: { gap: 12, marginTop: 16 },
   forgot: { alignSelf: "flex-end", paddingVertical: 8, paddingHorizontal: 3 },
-  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, padding: 11, borderRadius: 12, backgroundColor: "rgba(217,121,162,0.1)", borderWidth: 1, borderColor: "rgba(217,121,162,0.3)" },
-  noticeBox: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, padding: 11, borderRadius: 12, backgroundColor: "rgba(242,200,121,0.08)", borderWidth: 1, borderColor: "rgba(242,200,121,0.3)" },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, padding: 11, borderRadius: 10, backgroundColor: "rgba(217,121,162,0.1)", borderWidth: 1, borderColor: "rgba(217,121,162,0.3)" },
+  noticeBox: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, padding: 11, borderRadius: 10, backgroundColor: "rgba(242,200,121,0.08)", borderWidth: 1, borderColor: "rgba(242,200,121,0.3)" },
   loadingCopy: { marginTop: 8 },
   configNote: { color: colors.coralSoft, marginTop: 11 },
   divider: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16, marginBottom: 13 },
   dividerLine: { height: 1, flex: 1, backgroundColor: colors.divider },
-  googleButton: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: radii.pill, backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.borderStrong },
+  googleButton: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 14, backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.borderStrong },
   googleBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.ivory, alignItems: "center", justifyContent: "center" },
   googleGlyph: { color: "#4263EB", fontFamily: "NunitoSans-Bold", fontSize: 15 },
   previewButton: { alignSelf: "center", marginTop: 13, flexDirection: "row", alignItems: "center", gap: 7, padding: 6 },

@@ -99,5 +99,5 @@ const useStyles = makeStyles((colors) => ({
   legend: { flexDirection: "row", gap: 12, marginTop: 16 },
   legendItem: { flex: 1, flexDirection: "row", gap: 10, alignItems: "center" },
   legendBar: { width: 4, height: 34, borderRadius: 2 },
-  status: { marginTop: 16, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 13, paddingVertical: 11, borderRadius: 14, borderWidth: 1 },
+  status: { marginTop: 16, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 13, paddingVertical: 11, borderRadius: 10, borderWidth: 1 },
 }));

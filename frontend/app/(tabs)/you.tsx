@@ -114,8 +114,7 @@ export default function You() {
   return (
     <Screen>
       <Animated.View entering={rise(0)}>
-        <AppText variant="label" style={{ color: colors.coralSoft, letterSpacing: 1.3 }}>PROFILE</AppText>
-        <AppText variant="display" style={{ marginTop: 4 }}>Your space</AppText>
+        <AppText variant="display">Profile</AppText>
       </Animated.View>
 
       <Animated.View entering={rise(1)}>
@@ -188,7 +187,7 @@ export default function You() {
           <AppText variant="subtitle">Your story stays yours</AppText>
         </View>
         <AppText variant="caption" muted style={{ marginTop: 8, lineHeight: 19 }}>
-          Your saved details are scoped to your account. Tara sends relevant chart facts and questions to our AI provider for responses. You can delete your account below.
+          Your saved details are scoped to your account. Tara is AstroNow&apos;s digital astrologer: her replies are generated from your chart facts by our astrology engine. You can delete your account below.
         </AppText>
       </GlassCard>
 
@@ -248,8 +247,8 @@ const useStyles = makeStyles((colors) => ({
   avatarRing: { width: 66, height: 66, borderRadius: 33, padding: 2.5 },
   avatar: { flex: 1, borderRadius: 31, alignItems: "center", justifyContent: "center", backgroundColor: "#1C1638" },
   signs: { flexDirection: "row", gap: 8, marginTop: 16 },
-  sign: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 16, backgroundColor: "rgba(11,11,26,0.45)", borderWidth: 1, borderColor: colors.border },
-  chartBtn: { marginTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 46, borderRadius: 23, borderWidth: 1.5, borderColor: "rgba(240,160,189,0.5)" },
+  sign: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 12, backgroundColor: "rgba(11,11,26,0.45)", borderWidth: 1, borderColor: colors.border },
+  chartBtn: { marginTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 46, borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(240,160,189,0.5)" },
   stats: { flexDirection: "row", gap: 10, marginTop: 12 },
   stat: { flex: 1, alignItems: "center", paddingVertical: 14, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
   plan: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 13, padding: 16, borderRadius: radii.lg, overflow: "hidden", borderWidth: 1, borderColor: colors.glassBorder },
@@ -262,7 +261,7 @@ const useStyles = makeStyles((colors) => ({
   modalSheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 38, borderWidth: 1, borderColor: colors.borderStrong },
   modalHandle: { width: 48, height: 4, borderRadius: 2, backgroundColor: colors.muted, opacity: 0.45, alignSelf: "center", marginBottom: 18 },
   modalHeader: { flexDirection: "row", alignItems: "flex-start", gap: 14, marginBottom: 15 },
-  closeButton: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary },
-  option: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
+  closeButton: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary },
+  option: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
   optionSelected: { borderColor: colors.gold, backgroundColor: colors.gold + "12" },
 }));

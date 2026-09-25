@@ -296,15 +296,15 @@ function PlanCard({ selected, onPress, title, price, period, badge, save, note, 
 }
 
 const useStyles = makeStyles((colors) => ({
-  close: { alignSelf: "flex-end", width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary },
+  close: { alignSelf: "flex-end", width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary },
   headline: { color: colors.ivory, marginTop: 6, fontSize: 34, lineHeight: 40 },
-  segment: { flexDirection: "row", marginTop: 22, padding: 4, borderRadius: 26, backgroundColor: "rgba(33,31,59,0.9)", borderWidth: 1, borderColor: colors.border },
-  segmentPill: { position: "absolute", left: 4, top: 4, bottom: 4, borderRadius: 22, backgroundColor: "#3B3470", borderWidth: 1, borderColor: "rgba(168,160,232,0.5)" },
+  segment: { flexDirection: "row", marginTop: 22, padding: 4, borderRadius: 14, backgroundColor: "rgba(33,31,59,0.9)", borderWidth: 1, borderColor: colors.border },
+  segmentPill: { position: "absolute", left: 4, top: 4, bottom: 4, borderRadius: 10, backgroundColor: "#3B3470", borderWidth: 1, borderColor: "rgba(168,160,232,0.5)" },
   segmentItem: { flex: 1, height: 44, alignItems: "center", justifyContent: "center" },
   plan: { flexDirection: "row", alignItems: "center", gap: 14, padding: 18, paddingTop: 22, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
   planSelected: { borderColor: colors.gold, borderWidth: 1.5 },
   badge: { position: "absolute", top: 0, right: 18, paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: colors.gold },
-  save: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: "#8FB8F0" },
+  save: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: "#8FB8F0" },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.borderStrong, alignItems: "center", justifyContent: "center" },
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.gold },
   unlocks: { marginTop: 20, gap: 14, padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.glassBorder },
@@ -319,6 +319,6 @@ const useStyles = makeStyles((colors) => ({
   reportIcon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
   discount: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, backgroundColor: "#8FB8F0" },
   trust: { flexDirection: "row", marginTop: 22, gap: 8 },
-  trustItem: { flex: 1, alignItems: "center", gap: 6, paddingVertical: 12, borderRadius: 16, backgroundColor: "rgba(235,226,250,0.04)" },
+  trustItem: { flex: 1, alignItems: "center", gap: 6, paddingVertical: 12, borderRadius: 12, backgroundColor: "rgba(235,226,250,0.04)" },
   dock: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 30 },
 }));

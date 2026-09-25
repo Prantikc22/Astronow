@@ -41,8 +41,8 @@ export default function MatchHub() {
   return (
     <Screen contentStyle={{ paddingBottom: 130 }}>
       <Animated.View entering={rise(0)}>
-        <AppText variant="label" style={{ color: colors.coralSoft, letterSpacing: 1.3 }}>COMPATIBILITY</AppText>
-        <AppText variant="display" style={{ marginTop: 5 }}>Two charts, one honest picture</AppText>
+        <AppText variant="display">Match</AppText>
+        <AppText variant="body" muted style={{ marginTop: 4 }}>Kundli matching for love, marriage, friendship and work.</AppText>
       </Animated.View>
 
       <Animated.View entering={rise(1)} style={{ marginTop: 20 }}>
@@ -97,8 +97,7 @@ export default function MatchHub() {
       ) : null}
 
       <Animated.View entering={rise(3)} style={{ marginTop: 28 }}>
-        <AppText variant="label" style={{ color: colors.violet, letterSpacing: 1.1 }}>YOUR MATCHES</AppText>
-        <AppText variant="title" style={{ marginTop: 3 }}>{history.length ? "Recent matches" : "No matches yet"}</AppText>
+        <AppText variant="title">{history.length ? "Recent matches" : "No matches yet"}</AppText>
         {history.length ? (
           <View style={{ gap: 10, marginTop: 14 }}>
             {history.slice(0, 5).map((item: any, i: number) => {
@@ -167,7 +166,7 @@ const useStyles = makeStyles((colors) => ({
   avatar: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center" },
   ghost: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.borderStrong },
   types: { flexDirection: "row", gap: 8, marginTop: 20 },
-  type: { alignItems: "center", paddingVertical: 11, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(11,11,26,0.35)" },
+  type: { alignItems: "center", paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(11,11,26,0.35)" },
   upsell: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 12, padding: 16, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.glassBorder },
   historyRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 14, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
   trustCard: { marginTop: 26, flexDirection: "row", alignItems: "flex-start", gap: 13, padding: 18, borderRadius: radii.xl, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.border },

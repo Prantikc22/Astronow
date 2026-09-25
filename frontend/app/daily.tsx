@@ -15,6 +15,7 @@ import { MotionPressable } from "@/src/components/MotionPressable";
 import { ProgressBar } from "@/src/components/ProgressBar";
 import { ErrorState, Screen } from "@/src/components/Screen";
 import { Skeleton } from "@/src/components/Skeleton";
+import { UpsellSheet, useNudge } from "@/src/components/UpsellSheet";
 import { WeekStrip } from "@/src/components/WeekStrip";
 import { AREAS, areaMeter, dayRuler, dayScore, meterPercent, scoreTone, type AreaKey } from "@/src/content/day-insights";
 import { dailyCopy, dailyReading, moonPhaseLabel, moonPosition, readingLocale } from "@/src/content/daily-reading";
@@ -30,7 +31,10 @@ export default function DailyReading() {
   const { colors } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ offset?: string; area?: string }>();
-  const { profile } = useAuth();
+  const { profile, entitlement } = useAuth();
+  const nudge = useNudge("daily-year", 24);
+  const [sheet, setSheet] = useState(false);
+  const [opened, setOpened] = useState(0);
   const language = profile?.language || "en";
   const copy = dailyCopy(language);
   const locale = readingLocale(language);
@@ -53,6 +57,10 @@ export default function DailyReading() {
   const toggle = (key: AreaKey) => {
     LayoutAnimation.configureNext(LayoutAnimation.create(260, "easeInEaseOut", "opacity"));
     setOpen((current) => (current === key ? null : key));
+    const count = opened + 1;
+    setOpened(count);
+    // Someone reading a second life area is engaged: offer the whole year once a day.
+    if (count === 2 && !entitlement.premium && nudge.ready) setTimeout(() => { setSheet(true); nudge.markShown(); }, 900);
   };
 
   return (
@@ -160,6 +168,7 @@ export default function DailyReading() {
           <AppText variant="title" style={{ marginTop: 8 }}>{reading.action || (language === "bn" ? "আজ একটি বিষয়কে পুরো মনোযোগ দিন।" : "Give one important thing your full attention.")}</AppText>
         </View>
       </View> : null}
+      <UpsellSheet visible={sheet} kind="year-ahead" onClose={() => setSheet(false)} />
     </Screen>
   );
 }
@@ -242,7 +251,7 @@ const useStyles = makeStyles((colors) => ({
   content: { gap: 24, paddingTop: 24 },
   unavailable: { marginTop: 28, padding: 24, borderRadius: radii.xl, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.borderStrong },
   summary: { padding: 22, borderRadius: radii.xl, borderWidth: 1, borderColor: "rgba(217,121,162,0.3)" },
-  rulerPill: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, height: 50, borderRadius: 25, backgroundColor: "rgba(11,11,26,0.55)", borderWidth: 1, borderColor: colors.border },
+  rulerPill: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, height: 48, borderRadius: 14, backgroundColor: "rgba(11,11,26,0.55)", borderWidth: 1, borderColor: colors.border },
   colorDot: { width: 18, height: 18, borderRadius: 9, shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
   pillDivider: { width: 1, height: 24, backgroundColor: colors.borderStrong },
   signals: { padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.border },
@@ -251,8 +260,8 @@ const useStyles = makeStyles((colors) => ({
   card: { padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.border },
   area: { padding: 18, borderRadius: radii.xl, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
   medal: { width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.15)" },
-  focus: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: "rgba(235,226,250,0.05)" },
+  focus: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 14, padding: 12, borderRadius: 10, backgroundColor: "rgba(235,226,250,0.05)" },
   areaFoot: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16 },
-  askBtn: { flexDirection: "row", alignItems: "center", gap: 6, height: 38, paddingHorizontal: 16, borderRadius: 19, borderWidth: 1.5, borderColor: "rgba(240,160,189,0.55)" },
+  askBtn: { flexDirection: "row", alignItems: "center", gap: 6, height: 36, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5, borderColor: "rgba(240,160,189,0.55)" },
   actionCard: { padding: 22, borderRadius: radii.xl, backgroundColor: colors.brand, borderWidth: 1, borderColor: colors.glassBorder },
 }));

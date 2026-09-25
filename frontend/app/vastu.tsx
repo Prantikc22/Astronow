@@ -4,13 +4,13 @@ import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
-import Animated, { Easing, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
+import Animated, { Easing, FadeInDown, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
 import { api } from "@/src/api/client";
 import { AppText } from "@/src/components/AppText";
 import { Button } from "@/src/components/Button";
-import { Chip } from "@/src/components/Chip";
 import { CountUp } from "@/src/components/CountUp";
+import { FloorPlanEditor, GRID, nameFor, newRoomId, type PlanRoom, type RoomType } from "@/src/components/FloorPlanEditor";
 import { ScoreRing } from "@/src/components/ScoreRing";
 import { GlassCard } from "@/src/components/GlassCard";
 import { Icon } from "@/src/components/Icon";
@@ -21,20 +21,37 @@ import { pop, rise } from "@/src/motion";
 import { makeStyles, radii, useTheme } from "@/src/theme";
 import { haptics } from "@/src/utils/haptics";
 
-const GRID = 6;
-const CELL = 100 / GRID;
-const ROOM_TYPES = [
-  { id: "entrance", label: "Entrance", short: "En", color: "#6E5A2E" },
-  { id: "living", label: "Living", short: "Lv", color: "#2B4C5E" },
-  { id: "kitchen", label: "Kitchen", short: "Ki", color: "#7A3B2E" },
-  { id: "master_bedroom", label: "Master Bed", short: "MB", color: "#584E82" },
-  { id: "bedroom", label: "Bedroom", short: "Bd", color: "#3D5A72" },
-  { id: "bathroom", label: "Bath", short: "Ba", color: "#625B9B" },
-  { id: "toilet", label: "Toilet", short: "To", color: "#4A4A57" },
-  { id: "pooja", label: "Pooja · prayer", short: "Pu", color: "#8C6A3B" },
-  { id: "dining", label: "Dining", short: "Dn", color: "#5E4B2B" },
-  { id: "study", label: "Study", short: "St", color: "#545FA0" },
-  { id: "staircase", label: "Stairs", short: "Sr", color: "#57524A" },
+const ROOM_TYPES: RoomType[] = [
+  { id: "entrance", label: "Entrance", short: "En", color: "#9A7B3A" },
+  { id: "living", label: "Living", short: "Lv", color: "#2F6273" },
+  { id: "kitchen", label: "Kitchen", short: "Ki", color: "#A24B38" },
+  { id: "master_bedroom", label: "Master bed", short: "MB", color: "#6A5CA8" },
+  { id: "bedroom", label: "Bedroom", short: "Bd", color: "#446C8C" },
+  { id: "bathroom", label: "Bath", short: "Ba", color: "#5F7FA0" },
+  { id: "toilet", label: "Toilet", short: "To", color: "#5B5B6B" },
+  { id: "pooja", label: "Pooja · prayer", short: "Pu", color: "#B08A3E" },
+  { id: "dining", label: "Dining", short: "Dn", color: "#7A5E35" },
+  { id: "study", label: "Study", short: "St", color: "#5563B0" },
+  { id: "staircase", label: "Stairs", short: "Sr", color: "#6B655B" },
+  { id: "balcony", label: "Balcony", short: "Bl", color: "#3F7F6A" },
+];
+const T = (id: string) => ROOM_TYPES.find((t) => t.id === id)!;
+const C = 100 / GRID;
+const room = (type: string, name: string, x: number, y: number, w: number, h: number): PlanRoom =>
+  ({ id: newRoomId(), room_type: type, name, x: x * C, y: y * C, width: w * C, height: h * C });
+// Common Indian apartment layouts (BHK = bedrooms, hall, kitchen), drawn North-up.
+const TEMPLATES: { id: string; label: string; sub: string; make: () => PlanRoom[] }[] = [
+  { id: "1bhk", label: "1BHK", sub: "1-bed apartment", make: () => [
+    room("entrance", "Entrance", 5, 0, 2, 2), room("living", "Living", 0, 2, 7, 5), room("kitchen", "Kitchen", 8, 8, 4, 4),
+    room("master_bedroom", "Master bed", 0, 8, 6, 4), room("toilet", "Toilet", 7, 0, 3, 2), room("balcony", "Balcony", 8, 2, 4, 3)] },
+  { id: "2bhk", label: "2BHK", sub: "2-bed apartment", make: () => [
+    room("entrance", "Entrance", 5, 0, 2, 2), room("pooja", "Pooja · prayer", 10, 0, 2, 2), room("living", "Living", 0, 2, 7, 4),
+    room("kitchen", "Kitchen", 9, 8, 3, 4), room("master_bedroom", "Master bed", 0, 8, 5, 4), room("bedroom", "Bedroom", 0, 0, 5, 2),
+    room("toilet", "Toilet", 5, 10, 3, 2), room("dining", "Dining", 8, 3, 4, 4)] },
+  { id: "3bhk", label: "3BHK", sub: "3-bed home", make: () => [
+    room("entrance", "Entrance", 6, 0, 2, 2), room("pooja", "Pooja · prayer", 10, 0, 2, 2), room("living", "Living", 3, 2, 6, 4),
+    room("kitchen", "Kitchen", 9, 8, 3, 4), room("master_bedroom", "Master bed", 0, 8, 5, 4), room("bedroom", "Bedroom", 0, 2, 3, 4),
+    room("bedroom", "Bedroom 2", 0, 0, 5, 2), room("study", "Study", 9, 3, 3, 4), room("toilet", "Toilet", 5, 10, 3, 2), room("dining", "Dining", 5, 7, 4, 3)] },
 ];
 
 export default function VastuScreen() {
@@ -44,9 +61,10 @@ export default function VastuScreen() {
   const { t } = useTerms();
 
   const [selected, setSelected] = useState("living");
-  const [cells, setCells] = useState<Record<number, string>>({});
-  const [past, setPast] = useState<Record<number, string>[]>([]);
-  const [future, setFuture] = useState<Record<number, string>[]>([]);
+  const [rooms, setRooms] = useState<PlanRoom[]>([]);
+  const [past, setPast] = useState<PlanRoom[][]>([]);
+  const [future, setFuture] = useState<PlanRoom[][]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [north, setNorth] = useState(0);
   const [mode, setMode] = useState<"choose" | "draw" | "upload">("choose");
   const [detectedRooms, setDetectedRooms] = useState<any[]>([]);
@@ -59,35 +77,56 @@ export default function VastuScreen() {
     onError: (error: any) => setUploadError(error?.message || "We could not read this plan automatically. You can draw it instead."),
   });
 
-  const paint = (idx: number) => {
-    haptics.selection();
-    setCells((prev) => {
-      setPast((items) => [...items.slice(-29), prev]);
-      setFuture([]);
-      const copy = { ...prev };
-      if (copy[idx] === selected) delete copy[idx];
-      else copy[idx] = selected;
-      return copy;
-    });
+  const commit = (next: PlanRoom[]) => {
+    setPast((items) => [...items.slice(-39), rooms]);
+    setFuture([]);
+    setRooms(next);
   };
 
   const undo = () => {
     const previous = past[past.length - 1];
     if (!previous) return;
     haptics.selection();
-    setFuture((items) => [cells, ...items]);
-    setCells(previous);
+    setFuture((items) => [rooms, ...items]);
+    setRooms(previous);
     setPast((items) => items.slice(0, -1));
+    setSelectedRoom(null);
   };
 
   const redo = () => {
     const next = future[0];
     if (!next) return;
     haptics.selection();
-    setPast((items) => [...items, cells]);
-    setCells(next);
+    setPast((items) => [...items, rooms]);
+    setRooms(next);
     setFuture((items) => items.slice(1));
   };
+
+  const chooseType = (id: string) => {
+    setSelected(id);
+    // With a room selected, the chip retypes that room instead of arming a new one.
+    if (selectedRoom) {
+      commit(rooms.map((r) => (r.id === selectedRoom ? { ...r, room_type: id, name: nameFor(T(id), rooms, r.id) } : r)));
+    }
+  };
+
+  const deleteSelected = () => {
+    if (!selectedRoom) return;
+    commit(rooms.filter((r) => r.id !== selectedRoom));
+    setSelectedRoom(null);
+    haptics.warning();
+  };
+
+  const openOnCanvas = (list: any[]) => {
+    const known = new Set(ROOM_TYPES.map((t) => t.id));
+    commit(list.map((r: any) => ({
+      id: newRoomId(), room_type: known.has(r.room_type) ? r.room_type : "living", name: r.name || r.room_type || "Room",
+      x: Number(r.x) || 0, y: Number(r.y) || 0, width: Math.max(C, Number(r.width) || C * 2), height: Math.max(C, Number(r.height) || C * 2),
+    })));
+    setMode("draw");
+  };
+
+  const buildRooms = () => rooms.map(({ id: _id, ...r }) => r);
 
   const pickFloorPlan = async () => {
     setUploadError(null);
@@ -97,26 +136,8 @@ export default function VastuScreen() {
     parsePlan.mutate("data:" + (asset.mimeType || "image/jpeg") + ";base64," + asset.base64);
   };
 
-  const buildRooms = () => {
-    const byType: Record<string, number[]> = {};
-    Object.entries(cells).forEach(([idx, type]) => {
-      (byType[type] ||= []).push(+idx);
-    });
-    return Object.entries(byType).map(([type, idxs]) => {
-      const cols = idxs.map((i) => i % GRID);
-      const rows = idxs.map((i) => Math.floor(i / GRID));
-      const minC = Math.min(...cols), maxC = Math.max(...cols);
-      const minR = Math.min(...rows), maxR = Math.max(...rows);
-      return {
-        room_type: type,
-        name: ROOM_TYPES.find((r) => r.id === type)?.label || type,
-        x: minC * CELL, y: minR * CELL,
-        width: (maxC - minC + 1) * CELL, height: (maxR - minR + 1) * CELL,
-      };
-    });
-  };
 
-  const painted = Object.keys(cells).length;
+
   const res = analyze.data;
 
   return (
@@ -131,7 +152,7 @@ export default function VastuScreen() {
           <Animated.View entering={rise(2)}>
             <MotionPressable onPress={() => setMode("upload")} style={styles.modeCard} pressScale={0.98} haptic="medium" testID="vastu-mode-upload">
               <LinearGradient colors={["#B9E3E0", "#6FB3B4"]} style={styles.modeIcon}><Icon name="upload-cloud" size={22} color={colors.ink} weight="duotone" /></LinearGradient>
-              <View style={{ flex: 1 }}><AppText variant="subtitle">Upload a floor plan</AppText><AppText variant="caption" muted>Photo, screenshot or builder&apos;s plan. AI finds the rooms; you confirm.</AppText></View>
+              <View style={{ flex: 1 }}><AppText variant="subtitle">Upload a floor plan</AppText><AppText variant="caption" muted>Photo, screenshot or builder&apos;s plan. We detect the rooms; you confirm.</AppText></View>
               <Icon name="arrow-right" size={19} color={colors.goldSoft} />
             </MotionPressable>
           </Animated.View>
@@ -151,7 +172,7 @@ export default function VastuScreen() {
               </View>
             ))}
           </Animated.View>
-          <View style={styles.privacy}><Icon name="shield" size={15} color={colors.violet} /><AppText variant="caption" muted style={{ flex: 1 }}>Floor plans stay private. AI suggestions are never final until you confirm them.</AppText></View>
+          <View style={styles.privacy}><Icon name="shield" size={15} color={colors.violet} /><AppText variant="caption" muted style={{ flex: 1 }}>Floor plans stay private. Detected rooms are never final until you confirm them.</AppText></View>
         </View>
       ) : !res && mode === "upload" ? (
         <View style={{ gap: 16, paddingTop: 12 }}>
@@ -181,59 +202,72 @@ export default function VastuScreen() {
                 ))}
               </View>
               <OrientationControl north={north} setNorth={setNorth} />
-              <Button label="Analyze confirmed plan" icon="home" loading={analyze.isPending}
+              <Button label="Analyse confirmed plan" iconRight="arrow-right" loading={analyze.isPending}
                 onPress={() => analyze.mutate({ rooms: detectedRooms, source: "upload" })} />
+              <Button label="Fix it on the plan editor" variant="secondary" icon="edit-3" onPress={() => openOnCanvas(detectedRooms)} testID="vastu-open-canvas" />
             </>
           )}
         </View>
       ) : !res ? (
-        <View style={{ gap: 16 }}>
-          <AppText variant="label" muted style={{ marginLeft: 4 }}>SELECT A ROOM, THEN TAP THE GRID</AppText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 20 }}>
-            {ROOM_TYPES.map((r) => (
-              <Chip key={r.id} label={r.label} selected={selected === r.id} onPress={() => setSelected(r.id)} testID={`vastu-type-${r.id}`} />
-            ))}
-          </ScrollView>
-
-          <GlassCard>
-            <View style={styles.editToolbar}>
-              <MotionPressable onPress={undo} disabled={!past.length} style={{ opacity: past.length ? 1 : 0.35 }}><Icon name="corner-up-left" size={19} color={colors.onSurface} /></MotionPressable>
-              <MotionPressable onPress={redo} disabled={!future.length} style={{ opacity: future.length ? 1 : 0.35 }}><Icon name="corner-up-right" size={19} color={colors.onSurface} /></MotionPressable>
-              <View style={{ flex: 1 }} />
-              <MotionPressable onPress={() => { setPast((items) => [...items, cells]); setCells({}); }} disabled={!painted}><AppText variant="caption" style={{ color: colors.coralSoft }}>Clear</AppText></MotionPressable>
-            </View>
-            <View style={styles.northRow}>
-              <AppText variant="caption" muted>North orientation</AppText>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <MotionPressable onPress={() => setNorth((north - 45 + 360) % 360)} testID="vastu-north-left"><Icon name="rotate-ccw" size={18} color={colors.gold} /></MotionPressable>
-                <View style={styles.compass}><View style={{ transform: [{ rotate: `${north}deg` }] }}><Icon name="navigation" size={18} color={colors.gold} /></View></View>
-                <AppText variant="caption" muted>{north}°</AppText>
-                <MotionPressable onPress={() => setNorth((north + 45) % 360)} testID="vastu-north-right"><Icon name="rotate-cw" size={18} color={colors.gold} /></MotionPressable>
+        <View style={{ gap: 14 }}>
+          {!rooms.length ? (
+            <Animated.View entering={rise(0)}>
+              <AppText variant="label" style={{ color: colors.goldSoft, letterSpacing: 1.1 }}>START FROM A LAYOUT</AppText>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                {TEMPLATES.map((tpl) => (
+                  <MotionPressable key={tpl.id} onPress={() => { commit(tpl.make()); haptics.medium(); }} style={styles.template} testID={`vastu-template-${tpl.id}`}>
+                    <AppText variant="subtitle">{tpl.label}</AppText>
+                    <AppText variant="caption" muted>{tpl.sub}</AppText>
+                  </MotionPressable>
+                ))}
               </View>
-            </View>
-            <View>
-              <DirectionLabels north={north} />
-              <View style={styles.grid}>
-              {Array.from({ length: GRID * GRID }).map((_, i) => {
-                const type = cells[i];
-                const meta = ROOM_TYPES.find((r) => r.id === type);
+            </Animated.View>
+          ) : null}
+
+          <View>
+            <AppText variant="label" muted style={{ marginLeft: 2, marginBottom: 8, letterSpacing: 1 }}>{selectedRoom ? "CHANGE THIS ROOM TO" : "ROOM TO DRAW"}</AppText>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ gap: 7, paddingHorizontal: 20 }}>
+              {ROOM_TYPES.map((r) => {
+                const on = selectedRoom ? rooms.find((x) => x.id === selectedRoom)?.room_type === r.id : selected === r.id;
                 return (
-                  <MotionPressable key={i} onPress={() => paint(i)} style={[styles.cell, meta && { backgroundColor: meta.color, borderColor: colors.gold }]} testID={`vastu-cell-${i}`}>
-                    {meta ? <AppText variant="caption" style={{ fontSize: 10 }}>{meta.short}</AppText> : null}
+                  <MotionPressable key={r.id} onPress={() => chooseType(r.id)} style={[styles.typeChip, on && { borderColor: r.color, backgroundColor: r.color + "40" }]} testID={`vastu-type-${r.id}`}>
+                    <View style={[styles.swatch, { backgroundColor: r.color }]} />
+                    <AppText variant="caption" style={{ color: on ? colors.onSurface : colors.muted }}>{r.label}</AppText>
                   </MotionPressable>
                 );
               })}
-              <View pointerEvents="none" style={styles.zoneGuides}>
-                <View style={[styles.zoneLineV, { left: "33.33%" }]} /><View style={[styles.zoneLineV, { left: "66.66%" }]} />
-                <View style={[styles.zoneLineH, { top: "33.33%" }]} /><View style={[styles.zoneLineH, { top: "66.66%" }]} />
-              </View>
-              </View>
-            </View>
-            <AppText variant="caption" muted center style={{ marginTop: 10 }}>Faint lines mark the nine Vastu zones. Rotate North to match your home.</AppText>
-          </GlassCard>
+            </ScrollView>
+          </View>
 
-          <Button label={`Analyze my home${painted ? ` (${painted} cells)` : ""}`} icon="home"
-            disabled={painted === 0} loading={analyze.isPending} onPress={() => analyze.mutate({ rooms: buildRooms() })} testID="vastu-analyze" />
+          <View style={styles.editorCard}>
+            <View style={styles.editToolbar}>
+              <MotionPressable onPress={undo} disabled={!past.length} style={[styles.toolBtn, { opacity: past.length ? 1 : 0.35 }]} accessibilityLabel="Undo"><Icon name="corner-up-left" size={18} color={colors.onSurface} /></MotionPressable>
+              <MotionPressable onPress={redo} disabled={!future.length} style={[styles.toolBtn, { opacity: future.length ? 1 : 0.35 }]} accessibilityLabel="Redo"><Icon name="corner-up-right" size={18} color={colors.onSurface} /></MotionPressable>
+              <View style={{ flex: 1 }} />
+              <MotionPressable onPress={() => setNorth((north - 45 + 360) % 360)} style={styles.toolBtn} testID="vastu-north-left" accessibilityLabel="Rotate North left"><Icon name="rotate-ccw" size={17} color={colors.goldSoft} /></MotionPressable>
+              <View style={styles.compass}><View style={{ transform: [{ rotate: `${north}deg` }] }}><Icon name="navigation" size={16} color={colors.goldSoft} weight="fill" /></View></View>
+              <MotionPressable onPress={() => setNorth((north + 45) % 360)} style={styles.toolBtn} testID="vastu-north-right" accessibilityLabel="Rotate North right"><Icon name="rotate-cw" size={17} color={colors.goldSoft} /></MotionPressable>
+            </View>
+            <View style={{ paddingHorizontal: 8, paddingVertical: 10 }}>
+              <FloorPlanEditor rooms={rooms} types={ROOM_TYPES} activeType={T(selected)} north={north}
+                selectedId={selectedRoom} onSelect={setSelectedRoom} onCommit={commit} />
+            </View>
+            {selectedRoom ? (
+              <Animated.View entering={FadeInDown.duration(200)} style={styles.selBar}>
+                <Icon name="hand-heart" size={15} color={colors.goldSoft} />
+                <AppText variant="caption" style={{ flex: 1, color: colors.onSurface }}>Drag to move · pick a type above to change it</AppText>
+                <MotionPressable onPress={deleteSelected} style={styles.deleteBtn} haptic="none" testID="vastu-delete-room"><Icon name="x" size={14} color={colors.coralSoft} /><AppText variant="caption" style={{ color: colors.coralSoft }}>Remove</AppText></MotionPressable>
+              </Animated.View>
+            ) : (
+              <AppText variant="caption" muted center style={{ paddingBottom: 12 }}>Gold lines mark the nine Vastu zones · North {north}°</AppText>
+            )}
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {rooms.length ? <Button label="Clear" variant="ghost" full={false} onPress={() => { commit([]); setSelectedRoom(null); }} haptic="warning" testID="vastu-clear" /> : null}
+            <Button label={rooms.length ? `Analyse ${rooms.length} room${rooms.length === 1 ? "" : "s"}` : "Draw a room to begin"} iconRight="arrow-right"
+              disabled={!rooms.length} loading={analyze.isPending} onPress={() => analyze.mutate({ rooms: buildRooms() })} testID="vastu-analyze" full={false} style={{ flex: 1 }} shine={rooms.length > 2} />
+          </View>
         </View>
       ) : (
         <View style={{ gap: 16, paddingTop: 8 }}>
@@ -285,7 +319,7 @@ export default function VastuScreen() {
               <Button label="Unlock with Plus" iconRight="arrow-right" onPress={() => router.push("/paywall")} style={{ marginTop: 16 }} testID="vastu-upgrade" shine />
             </LinearGradient>
           ) : null}
-          <Button label="Analyze another home" variant="secondary" icon="refresh-cw" onPress={() => { analyze.reset(); setMode("choose"); setCells({}); setDetectedRooms([]); }} testID="vastu-again" />
+          <Button label="Analyze another home" variant="secondary" icon="refresh-cw" onPress={() => { analyze.reset(); setMode("choose"); setRooms([]); setPast([]); setFuture([]); setSelectedRoom(null); setDetectedRooms([]); }} testID="vastu-again" />
         </View>
       )}
     </Screen>
@@ -352,25 +386,6 @@ function ZoneMap({ findings }: { findings: any[] }) {
         </View>
       ))}
     </View>
-  );
-}
-
-function DirectionLabels({ north }: { north: number }) {
-  // Which compass direction sits at the top of the grid for a given North rotation.
-  const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-  const at = (offset: number) => dirs[((Math.round(-north / 45) + offset) % 8 + 8) % 8];
-  const label = (text: string, style: object) => (
-    <View style={[{ position: "absolute", zIndex: 2, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, backgroundColor: "#1C1638" }, style]}>
-      <AppText variant="caption" style={{ fontSize: 10, color: text === "N" ? "#F7DDA6" : "#AAA6BE" }}>{text}</AppText>
-    </View>
-  );
-  return (
-    <>
-      {label(at(0), { top: -9, alignSelf: "center" })}
-      {label(at(2), { right: -6, top: "47%" })}
-      {label(at(4), { bottom: -9, alignSelf: "center" })}
-      {label(at(6), { left: -6, top: "47%" })}
-    </>
   );
 }
 
@@ -441,10 +456,16 @@ const useStyles = makeStyles((colors) => ({
   uploadGlyph: { width: 70, height: 70, borderRadius: 35, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(168,160,232,0.14)" },
   detectedRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: radii.lg, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
   detectedIndex: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: colors.gold },
-  editToolbar: { flexDirection: "row", alignItems: "center", gap: 18, paddingBottom: 12, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.divider },
-  compass: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.glassBorder },
+  editToolbar: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  compass: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.glassBorder },
   grid: { flexDirection: "row", flexWrap: "wrap", aspectRatio: 1, borderWidth: 1, borderColor: colors.gold, borderRadius: 8, overflow: "hidden" },
-  cell: { width: `${100 / GRID}%`, height: `${100 / GRID}%`, borderWidth: 0.5, borderColor: colors.border, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceSecondary },
+  template: { flex: 1, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.glassBorder },
+  typeChip: { flexDirection: "row", alignItems: "center", gap: 7, height: 36, paddingHorizontal: 11, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(28,27,52,0.9)" },
+  swatch: { width: 10, height: 10, borderRadius: 3 },
+  editorCard: { borderRadius: radii.xl, backgroundColor: "rgba(21,20,43,0.95)", borderWidth: 1, borderColor: colors.border, overflow: "visible" },
+  toolBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary },
+  selBar: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 12, marginBottom: 12, padding: 10, borderRadius: 10, backgroundColor: "rgba(242,200,121,0.08)", borderWidth: 1, borderColor: "rgba(242,200,121,0.25)" },
+  deleteBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, height: 30, borderRadius: 8, backgroundColor: "rgba(240,160,189,0.12)" },
   finding: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: radii.lg, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
   dot: { width: 10, height: 10, borderRadius: 999 },
 }));

@@ -100,7 +100,7 @@ function TabBar({ state, navigation }: any) {
         <View style={styles.row} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
           {width ? (
             <Animated.View style={[styles.indicator, { width: slot - 10 }, indicator]}>
-              <LinearGradient colors={["rgba(217,121,162,0.34)", "rgba(138,42,94,0.22)"]} style={{ flex: 1, borderRadius: 26 }} />
+              <LinearGradient colors={["rgba(217,121,162,0.34)", "rgba(138,42,94,0.22)"]} style={{ flex: 1, borderRadius: 14 }} />
             </Animated.View>
           ) : null}
           {routes.map((route: any) => {
@@ -155,7 +155,7 @@ const useStyles = makeStyles((colors) => ({
   bar: {
     alignSelf: "stretch",
     height: TAB_BAR_BASE,
-    borderRadius: 36,
+    borderRadius: 22,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(235,226,250,0.16)",
@@ -167,7 +167,7 @@ const useStyles = makeStyles((colors) => ({
   },
   fill: { position: "absolute", inset: 0 },
   row: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 0 },
-  indicator: { position: "absolute", left: 5, top: 7, bottom: 7, borderRadius: 26 },
+  indicator: { position: "absolute", left: 5, top: 7, bottom: 7, borderRadius: 14 },
   item: { flex: 1, height: TAB_BAR_BASE, alignItems: "center", justifyContent: "center" },
   orbHit: { position: "absolute", top: -30, alignSelf: "center" },
   orbWrap: { width: 72, height: 72, alignItems: "center", justifyContent: "center" },

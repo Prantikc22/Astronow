@@ -29,7 +29,7 @@ export function EditorialFooter({
 
 const useStyles = makeStyles((colors) => ({
   wrap: {
-    minHeight: 310,
+    minHeight: 240,
     marginTop: 40,
     paddingHorizontal: 22,
     paddingVertical: 30,
@@ -42,13 +42,13 @@ const useStyles = makeStyles((colors) => ({
     width: 62,
     height: 62,
     marginBottom: "auto",
-    borderRadius: 22,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.brandTertiary,
     borderWidth: 1,
     borderColor: colors.glassBorder,
   },
-  title: { marginTop: 10, fontSize: 42, lineHeight: 46, maxWidth: 340 },
+  title: { marginTop: 10, fontSize: 30, lineHeight: 35, maxWidth: 320 },
   note: { marginTop: 12 },
 }));

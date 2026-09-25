@@ -78,9 +78,9 @@ export default function ReportOffer() {
 const useStyles = makeStyles((colors) => ({
   hero: { minHeight: 405, borderRadius: radii.xl, padding: 22, borderWidth: 1, borderColor: colors.borderStrong, overflow: "hidden" },
   top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  pill: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: colors.gold, borderRadius: radii.pill, paddingHorizontal: 11, paddingVertical: 8 },
+  pill: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: colors.gold, borderRadius: 8, paddingHorizontal: 11, paddingVertical: 8 },
   priceBlock: { marginTop: "auto", alignItems: "flex-start", gap: 7 },
-  offerBadge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.gold },
+  offerBadge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.gold },
   priceRow: { flexDirection: "row", alignItems: "baseline", gap: 9 },
   listPrice: { textDecorationLine: "line-through" },
   includes: { marginTop: 18, padding: 19, borderRadius: radii.xl, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, gap: 15 },

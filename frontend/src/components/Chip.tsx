@@ -3,7 +3,7 @@ import { ViewStyle } from "react-native";
 
 import { AppText } from "@/src/components/AppText";
 import { MotionPressable } from "@/src/components/MotionPressable";
-import { makeStyles, radii, useTheme } from "@/src/theme";
+import { makeStyles, useTheme } from "@/src/theme";
 
 export function Chip({
   label,
@@ -38,7 +38,7 @@ const useStyles = makeStyles((colors) => ({
     flexShrink: 0,
     height: 40,
     paddingHorizontal: 16,
-    borderRadius: radii.pill,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surfaceTertiary,

@@ -18,6 +18,7 @@ import { makeStyles, radii, useTheme } from "@/src/theme";
 
 const TOOLS: { label: string; sub: string; icon: FeatherName; route: string; tint: [string, string] }[] = [
   { label: "Birth chart", sub: "Kundli", icon: "target", route: "/chart", tint: ["#F7DDA6", "#E3A866"] },
+  { label: "Daily ritual", sub: "Mantra & breath", icon: "sparkle", route: "/ritual", tint: ["#F7DDA6", "#B08A3E"] },
   { label: "Vastu home", sub: "Upload or draw", icon: "home", route: "/vastu", tint: ["#B9E3E0", "#6FB3B4"] },
   { label: "Tarot", sub: "Draw a spread", icon: "layers", route: "/tarot", tint: ["#E4C9FF", "#A77BDB"] },
   { label: "Numerology", sub: "Your numbers", icon: "hash", route: "/numerology", tint: ["#F6B6CB", "#D0628F"] },
@@ -45,9 +46,8 @@ export default function Reports() {
 
   return <Screen contentStyle={{ paddingBottom: 130 }}>
     <Animated.View entering={rise(0)}>
-      <AppText variant="label" style={styles.eyebrow}>DEEP READINGS</AppText>
-      <AppText variant="display" style={{ marginTop: 5 }}>Your chart, made useful</AppText>
-      <AppText variant="body" muted style={{ marginTop: 6, maxWidth: 340 }}>Long-form readings for questions that deserve more than a quick answer.</AppText>
+      <AppText variant="display">Reports</AppText>
+      <AppText variant="body" muted style={{ marginTop: 4, maxWidth: 340 }}>In-depth readings from your birth chart.</AppText>
     </Animated.View>
 
     {!entitlement.premium ? (
@@ -79,8 +79,7 @@ export default function Reports() {
     </Animated.View>
 
     <Animated.View entering={rise(3)} style={{ marginTop: 28 }}>
-      <AppText variant="label" style={{ color: colors.violet, letterSpacing: 1.1 }}>EXPLORE YOUR CHART</AppText>
-      <AppText variant="title" style={{ marginTop: 3 }}>Tools & instant readings</AppText>
+      <AppText variant="title">Explore your chart</AppText>
     </Animated.View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginTop: 14 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
       {TOOLS.map((tool, i) => (
@@ -181,24 +180,24 @@ function Orbits() {
 
 const useStyles = makeStyles((colors) => ({
   eyebrow: { color: colors.coralSoft, letterSpacing: 1.4 },
-  unlock: { marginTop: 18, flexDirection: "row", alignItems: "center", gap: 12, padding: 10, paddingLeft: 12, borderRadius: radii.pill, backgroundColor: "rgba(33,31,59,0.92)", borderWidth: 1, borderColor: colors.glassBorder },
+  unlock: { marginTop: 18, flexDirection: "row", alignItems: "center", gap: 12, padding: 10, paddingLeft: 12, borderRadius: radii.lg, backgroundColor: "rgba(33,31,59,0.92)", borderWidth: 1, borderColor: colors.glassBorder },
   unlockRing: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderColor: colors.coral, alignItems: "center", justifyContent: "center" },
-  unlockBtn: { paddingHorizontal: 16, height: 40, borderRadius: 20, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  unlockBtn: { paddingHorizontal: 16, height: 40, borderRadius: 10, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   featured: { height: 300, borderRadius: radii.xl, overflow: "hidden", borderWidth: 1, borderColor: colors.borderStrong },
   featuredFill: { flex: 1, padding: 20, overflow: "hidden" },
-  featuredTag: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.gold },
-  readRow: { alignSelf: "flex-start", flexDirection: "row", gap: 8, alignItems: "center", marginTop: 16, paddingHorizontal: 18, height: 44, borderRadius: 22, backgroundColor: colors.ivory },
+  featuredTag: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.gold },
+  readRow: { alignSelf: "flex-start", flexDirection: "row", gap: 8, alignItems: "center", marginTop: 16, paddingHorizontal: 18, height: 44, borderRadius: 12, backgroundColor: colors.ivory },
   tool: { width: 120, padding: 14, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
   toolIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   ornament: { flexDirection: "row", alignItems: "center", gap: 10 },
   ornLine: { flex: 1, height: 1 },
-  ornPill: { paddingHorizontal: 18, paddingVertical: 7, borderRadius: 20, backgroundColor: "#2E2B4F" },
+  ornPill: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 10, backgroundColor: "#2E2B4F" },
   tiles: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", columnGap: 10, rowGap: 16, marginTop: 16 },
   tileCell: { width: "22.5%", alignItems: "center" },
-  tile: { width: "100%", aspectRatio: 1, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(33,31,59,0.95)", borderWidth: 1, borderColor: colors.border },
+  tile: { width: "100%", aspectRatio: 1, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(33,31,59,0.95)", borderWidth: 1, borderColor: colors.border },
   lock: { position: "absolute", right: 6, bottom: 6, width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(11,11,26,0.7)" },
   premiumCard: { flexDirection: "row", alignItems: "center", gap: 13, padding: 16, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.borderStrong },
   premiumIcon: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   priceStack: { alignItems: "flex-end", gap: 2, minWidth: 64 },
-  discountPill: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, backgroundColor: "#8FB8F0" },
+  discountPill: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, backgroundColor: "#8FB8F0" },
 }));

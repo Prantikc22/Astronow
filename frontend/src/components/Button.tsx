@@ -6,7 +6,7 @@ import { AppText } from "@/src/components/AppText";
 import { Icon, type FeatherName } from "@/src/components/Icon";
 import { MotionPressable } from "@/src/components/MotionPressable";
 import { Shine } from "@/src/components/Shine";
-import { makeStyles, radii, useTheme } from "@/src/theme";
+import { makeStyles, useTheme } from "@/src/theme";
 import type { HapticName } from "@/src/utils/haptics";
 
 type Variant = "primary" | "secondary" | "ghost" | "rose";
@@ -83,8 +83,8 @@ export function Button({
 
 const useStyles = makeStyles((colors) => ({
   base: {
-    minHeight: 56,
-    borderRadius: radii.pill,
+    minHeight: 54,
+    borderRadius: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

@@ -286,7 +286,7 @@ export default function Onboarding() {
                     ))}
                   </View>
                   <AppText variant="subtitle" style={{ marginTop: 25 }}>Tara’s reading language</AppText>
-                  <AppText variant="caption" muted style={{ marginTop: 4, marginBottom: 12 }}>Her AI replies use your choice. App menus remain in English.</AppText>
+                  <AppText variant="caption" muted style={{ marginTop: 4, marginBottom: 12 }}>Tara replies in your choice. App menus remain in English.</AppText>
                   <View style={styles.wrap}>
                     {READING_LANGUAGES.map((item) => <Chip key={item.code} label={item.native} selected={readingLanguage === item.code}
                       onPress={() => setReadingLanguage(item.code)} testID={`onb-language-${item.code}`} />)}

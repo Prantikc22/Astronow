@@ -96,7 +96,7 @@ const useStyles = makeStyles((colors) => ({
   cover: { height: 330, borderRadius: radii.xl, overflow: "hidden", borderWidth: 1, borderColor: colors.borderStrong },
   coverFill: { flex: 1, padding: 22, overflow: "hidden" },
   coverTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 2 },
-  typePill: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 11, paddingVertical: 8, borderRadius: radii.pill, backgroundColor: colors.gold },
+  typePill: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 11, paddingVertical: 8, borderRadius: 8, backgroundColor: colors.gold },
   arcOne: { position: "absolute", width: 270, height: 270, borderRadius: 999, borderWidth: 1, borderColor: "rgba(242,200,121,0.15)", top: -85, right: -95 },
   arcTwo: { position: "absolute", width: 180, height: 180, borderRadius: 999, borderWidth: 1, borderColor: "rgba(168,160,232,0.23)", top: -40, right: -50 },
   summary: { flexDirection: "row", alignItems: "center", gap: 13, padding: 17, borderRadius: radii.lg, backgroundColor: colors.brand, borderWidth: 1, borderColor: colors.glassBorder },

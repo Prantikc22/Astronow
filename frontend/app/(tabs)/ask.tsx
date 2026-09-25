@@ -38,7 +38,7 @@ export default function Ask() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string; at?: string }>();
-  const { profile } = useAuth();
+  const { profile, entitlement } = useAuth();
   const queryClient = useQueryClient();
   const scrollRef = useRef<ScrollView>(null);
   const [cid, setCid] = useState<string | null>(null);
@@ -138,6 +138,8 @@ export default function Ask() {
 
   const empty = messages.length === 0;
   const lastReply = messages[messages.length - 1];
+  const replies = messages.filter((m) => m.role === "assistant" && m.content && !m.failed).length;
+  const showPlusCard = !entitlement.premium && replies >= 2 && !busy;
   const showFollowUps = !busy && lastReply?.role === "assistant" && !!lastReply.content && !lastReply.failed;
 
   return (
@@ -152,7 +154,7 @@ export default function Ask() {
               </View>
               <View style={{ flex: 1 }}>
                 <AppText variant="title" style={{ fontSize: 21, lineHeight: 26 }}>Reading for {profile?.first_name || "you"}</AppText>
-                <AppText variant="caption" style={{ color: busy ? colors.goldSoft : colors.muted }}>{busy ? "Tara is reading your chart…" : "Tara · AI astrologer · online"}</AppText>
+                <AppText variant="caption" style={{ color: busy ? colors.goldSoft : colors.muted }}>{busy ? "Tara is reading your chart…" : "Tara · 24x7 Astrologer · online"}</AppText>
               </View>
             </View>
             <View style={{ flexDirection: "row", gap: 9 }}>
@@ -185,8 +187,8 @@ export default function Ask() {
                 <Animated.View entering={FadeInDown.duration(480)} style={styles.guideHero}>
                   <Image source={TARA_IMAGE} style={styles.guideImage} contentFit="contain" transition={260} />
                   <View style={styles.guideCopy}>
-                    <View style={styles.available}><View style={styles.availableDot} /><AppText variant="caption" style={{ color: colors.ivory }}>ASTROLOGY GUIDE</AppText></View>
-                    <AppText variant="title" style={{ color: colors.ivory }}>Tara · Astrologer</AppText>
+                    <View style={styles.available}><View style={styles.availableDot} /><AppText variant="caption" style={{ color: colors.ivory }}>AVAILABLE 24x7</AppText></View>
+                    <AppText variant="title" style={{ color: colors.ivory }}>Tara · 24x7 Astrologer</AppText>
                     <AppText variant="body" style={{ color: "#ECE8DA", marginTop: 4 }}>A little perspective can change the whole day.</AppText>
                   </View>
                 </Animated.View>
@@ -227,6 +229,20 @@ export default function Ask() {
                     )}
                   </Animated.View>
                 ))}
+                {showPlusCard ? (
+                  <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+                    <MotionPressable onPress={() => router.push("/paywall")} style={styles.plusCard} haptic="medium" testID="ask-plus-card" pressScale={0.98}>
+                      <LinearGradient colors={["#4A1C45", "#2A1640"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.plusFill}>
+                        <Icon name="crown" size={20} color={colors.goldSoft} weight="fill" />
+                        <View style={{ flex: 1 }}>
+                          <AppText variant="subtitle" style={{ fontSize: 15 }}>Keep the conversation going</AppText>
+                          <AppText variant="caption" muted>40 questions a day with Tara on Plus</AppText>
+                        </View>
+                        <Icon name="arrow-right" size={17} color={colors.goldSoft} />
+                      </LinearGradient>
+                    </MotionPressable>
+                  </Animated.View>
+                ) : null}
                 {showFollowUps ? (
                   <Animated.View entering={FadeInDown.delay(150).duration(360)} style={styles.followUps}>
                     {["Tell me more about this", "What should I do this week?", "When will this change?"].map((text) => (
@@ -294,7 +310,7 @@ function ReadingDot({ index }: { index: number }) {
 const useStyles = makeStyles((colors) => ({
   header: { paddingHorizontal: 20, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   eyebrow: { color: colors.coralSoft, letterSpacing: 1.4, fontSize: 9 },
-  headerButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(21,20,43,0.96)", borderWidth: 1, borderColor: colors.border },
+  headerButton: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(21,20,43,0.96)", borderWidth: 1, borderColor: colors.border },
   historyPanel: { position: "absolute", zIndex: 20, top: 104, left: 16, right: 16, maxHeight: 340, padding: 16, borderRadius: radii.xl, backgroundColor: "#11102A", borderWidth: 1, borderColor: colors.glassBorder },
   historyHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   historyRow: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 50, borderTopWidth: 1, borderTopColor: colors.divider },
@@ -322,10 +338,12 @@ const useStyles = makeStyles((colors) => ({
   aiBubble: { backgroundColor: "rgba(33,31,59,0.95)", borderBottomLeftRadius: 5, borderWidth: 1, borderColor: colors.border },
   headAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: colors.coral },
   onlineDot: { position: "absolute", right: 0, bottom: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: "#5BD08A", borderWidth: 2, borderColor: "#0B0B1A" },
+  plusCard: { marginTop: 12, marginLeft: 38, borderRadius: 14, overflow: "hidden" },
+  plusFill: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: "rgba(242,200,121,0.3)" },
   followUps: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6, marginLeft: 38 },
-  followUp: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 36, borderRadius: 18, backgroundColor: "rgba(33,31,59,0.9)", borderWidth: 1, borderColor: "rgba(242,200,121,0.25)" },
+  followUp: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 36, borderRadius: 10, backgroundColor: "rgba(33,31,59,0.9)", borderWidth: 1, borderColor: "rgba(242,200,121,0.25)" },
   composerWrap: { paddingHorizontal: 14, paddingTop: 9, borderTopWidth: 1, borderTopColor: colors.divider, backgroundColor: "rgba(11,11,26,0.97)" },
-  composer: { flexDirection: "row", alignItems: "flex-end", gap: 9, padding: 6, paddingLeft: 12, borderRadius: 28, backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.borderStrong },
+  composer: { flexDirection: "row", alignItems: "flex-end", gap: 9, padding: 6, paddingLeft: 12, borderRadius: 16, backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.borderStrong },
   input: { flex: 1, maxHeight: 110, minHeight: 42, paddingVertical: 11, color: colors.onSurface, fontFamily: fonts.body, fontSize: 15 },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center" },
+  sendBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center" },
 }));

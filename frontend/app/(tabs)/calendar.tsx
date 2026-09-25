@@ -132,7 +132,7 @@ function Cell({ label, value }: { label: string; value?: string }) {
 
 const useStyles = makeStyles((colors) => ({
   dayPill: {
-    width: 54, height: 72, borderRadius: 27, alignItems: "center", justifyContent: "center", gap: 4,
+    width: 54, height: 72, borderRadius: 14, alignItems: "center", justifyContent: "center", gap: 4,
     backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.border,
   },
   grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 16, columnGap: 16, marginTop: 14 },

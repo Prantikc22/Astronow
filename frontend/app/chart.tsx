@@ -129,5 +129,5 @@ const useStyles = makeStyles((colors) => ({
   detail: { paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
   askLink: { flexDirection: "row", alignItems: "center", gap: 6 },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tag: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radii.pill, backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.glassBorder },
+  tag: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.glassBorder },
 }));

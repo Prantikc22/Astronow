@@ -12,8 +12,12 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
+  FadeIn,
+  cancelAnimation,
+  withRepeat,
   withSequence,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -32,6 +36,7 @@ import { ErrorState } from "@/src/components/Screen";
 import { Shine } from "@/src/components/Shine";
 import { Skeleton } from "@/src/components/Skeleton";
 import { SparkleBurst } from "@/src/components/SparkleBurst";
+import { UpsellSheet, useNudge, type UpsellKind } from "@/src/components/UpsellSheet";
 import { WeekStrip } from "@/src/components/WeekStrip";
 import { AREAS, areaMeter, dayRuler, dayScore, meterPercent, scoreTone } from "@/src/content/day-insights";
 import { dailyReading, moonPosition, readingLocale } from "@/src/content/daily-reading";
@@ -59,11 +64,19 @@ export default function Today() {
   const insets = useSafeAreaInsets();
   const { profile, entitlement } = useAuth();
   const language = profile?.language || "en";
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["today", language], queryFn: () => api.get("/today"), staleTime: 10 * 60 * 1000,
     refetchInterval: (query) => query.state.data?.reading_status === "generating" ? 5000 : false,
   });
   const reading = dailyReading(data, language);
+  // Only a user's pull shows the spinner; background polling while the reading
+  // generates must never move the page.
+  const [pulling, setPulling] = useState(false);
+  const onPull = async () => {
+    haptics.light();
+    setPulling(true);
+    try { await refetch(); } finally { setPulling(false); }
+  };
   const streak = useVisitStreak();
   const now = new Date();
   const locale = readingLocale(language);
@@ -82,6 +95,16 @@ export default function Today() {
     opacity: interpolate(y.value, [0, 120], [1, 0.3], Extrapolation.CLAMP),
     transform: [{ translateY: interpolate(y.value, [-100, 0, 200], [30, 0, -40], Extrapolation.CLAMP) }],
   }));
+
+  const nudge = useNudge("home", 36);
+  const [sheet, setSheet] = useState(false);
+  const rotation: UpsellKind[] = ["plus", "artha-strategy", "plus", "twelve-year-compass", "year-ahead"];
+  const sheetKind = rotation[now.getDate() % rotation.length];
+  useEffect(() => {
+    if (!data || entitlement.premium || !nudge.ready) return;
+    const timer = setTimeout(() => { setSheet(true); nudge.markShown(); }, 7000);
+    return () => clearTimeout(timer);
+  }, [data, entitlement.premium, nudge]);
 
   const revealed = useRef(false);
   useEffect(() => {
@@ -104,7 +127,7 @@ export default function Today() {
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingTop: insets.top + 10, paddingBottom: 130, paddingHorizontal: 20 }}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.light(); refetch(); }} tintColor={colors.gold} />}
+          refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPull} tintColor={colors.gold} />}
         >
           <Animated.View style={heroParallax}>
             <View style={styles.topbar}>
@@ -153,6 +176,7 @@ export default function Today() {
                       <WeekStrip language={language} scores={{ 0: score }} onSelect={(offset) => router.push({ pathname: "/daily", params: { offset: String(offset) } } as any)} />
                     </View>
                     <AppText variant="title" center style={{ marginTop: 20, fontSize: 25, lineHeight: 31 }}>{reading.title}</AppText>
+                    {data.reading_status === "generating" ? <Writing /> : null}
                     {score != null ? <AppText variant="caption" center style={{ color: colors.coralSoft, marginTop: 4 }}>{scoreTone(score)} · {moonPosition(data.moon_today?.sign, data.moon_today?.nakshatra, language)}</AppText> : null}
                     <View style={styles.rulerPill}>
                       <View style={[styles.colorDot, { backgroundColor: ruler.color, shadowColor: ruler.color }]} />
@@ -172,7 +196,7 @@ export default function Today() {
 
               {/* Life areas */}
               <Animated.View entering={rise(2)}>
-                <SectionTitle eyebrow="YOUR DAY ACROSS LIFE" title="Where the energy is" action="All 8" onAction={() => router.push("/daily" as any)} />
+                <SectionTitle title="Your day by area" action="All 8" onAction={() => router.push("/daily" as any)} />
                 <View style={styles.areaGrid}>
                   {AREAS.slice(0, 4).map((area, i) => {
                     const meter = areaMeter(data.energy, area.key);
@@ -197,8 +221,8 @@ export default function Today() {
                 <Animated.View entering={rise(3)} style={styles.card}>
                   <View style={styles.cardHead}>
                     <View style={{ flex: 1 }}>
-                      <AppText variant="label" style={{ color: colors.coralSoft, letterSpacing: 1.1 }}>TODAY&apos;S TIMELINE</AppText>
-                      <AppText variant="title" style={{ marginTop: 3 }}>Move with the sky</AppText>
+                      <AppText variant="title">Today&apos;s timeline</AppText>
+                      <AppText variant="caption" muted style={{ marginTop: 2 }}>When to act, and when to wait</AppText>
                     </View>
                     <MotionPressable onPress={() => router.push("/(tabs)/calendar")} style={styles.iconBtn} accessibilityLabel="Open Panchang calendar">
                       <Icon name="calendar" size={18} color={colors.goldSoft} />
@@ -220,9 +244,22 @@ export default function Today() {
                 <ActionOfDay action={reading.action || "Give one important thing your full attention."} />
               </Animated.View>
 
+              {/* Daily ritual */}
+              <Animated.View entering={rise(5)}>
+                <MotionPressable onPress={() => router.push("/ritual" as any)} style={styles.ritual} pressScale={0.985} testID="home-ritual">
+                  <LinearGradient colors={["#B08A3E", "#6A4A1C"]} style={styles.ritualIcon}><AppText style={{ fontSize: 22, color: "#FFF6E0" }}>{ruler.glyph}</AppText></LinearGradient>
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="label" style={{ color: colors.goldSoft, letterSpacing: 1 }}>MANTRA OF THE DAY</AppText>
+                    <AppText variant="subtitle" style={{ marginTop: 2 }}>{ruler.planet} mantra · 108 japa</AppText>
+                    <AppText variant="caption" muted>Two quiet minutes for today&apos;s ruling planet</AppText>
+                  </View>
+                  <Icon name="chevron-right" size={18} color={colors.muted} />
+                </MotionPressable>
+              </Animated.View>
+
               {/* Offers */}
               <Animated.View entering={rise(5)}>
-                <SectionTitle eyebrow="GO DEEPER" title="Answers built for big decisions" action="All reports" onAction={() => router.push("/(tabs)/reports")} />
+                <SectionTitle title="Deep-dive reports" action="All reports" onAction={() => router.push("/(tabs)/reports")} />
                 <View style={{ marginTop: 14 }}>
                   <Carousel>
                     {[
@@ -293,7 +330,25 @@ export default function Today() {
           {score != null ? <View style={styles.miniScore}><AppText variant="label" style={{ color: colors.ink }}>{score}% today</AppText></View> : null}
         </Animated.View>
       </CosmicBackground>
+      <UpsellSheet visible={sheet} kind={sheetKind} onClose={() => setSheet(false)} />
     </View>
+  );
+}
+
+function Writing() {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.set(withRepeat(withTiming(1, { duration: 900 }), -1, true));
+    return () => cancelAnimation(t);
+  }, [t]);
+  const dot = useAnimatedStyle(() => ({ opacity: 0.3 + t.get() * 0.7 }));
+  return (
+    <Animated.View entering={FadeIn} style={styles.writing}>
+      <Animated.View style={[{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.goldSoft }, dot]} />
+      <AppText variant="caption" style={{ color: colors.goldSoft }}>Tara is writing today&apos;s full reading…</AppText>
+    </Animated.View>
   );
 }
 
@@ -390,14 +445,11 @@ function PromoCard({ kicker, title, body, price, list, icon, colors: fill, onPre
   );
 }
 
-function SectionTitle({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {
+function SectionTitle({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   const { colors } = useTheme();
   return (
     <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 12 }}>
-      <View style={{ flex: 1 }}>
-        <AppText variant="label" style={{ color: colors.coralSoft, letterSpacing: 1.1 }}>{eyebrow}</AppText>
-        <AppText variant="title" style={{ marginTop: 3 }}>{title}</AppText>
-      </View>
+      <AppText variant="title" style={{ flex: 1 }}>{title}</AppText>
       {action && onAction ? (
         <MotionPressable onPress={onAction} hitSlop={10} style={{ flexDirection: "row", alignItems: "center", gap: 3, paddingBottom: 3 }}>
           <AppText variant="label" style={{ color: colors.goldSoft }}>{action}</AppText>
@@ -437,43 +489,46 @@ const useStyles = makeStyles((colors) => ({
   topbar: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 46, height: 46, borderRadius: 23, overflow: "hidden" },
   avatarFill: { flex: 1, alignItems: "center", justifyContent: "center" },
-  streak: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, height: 36, borderRadius: 18, backgroundColor: "rgba(242,155,56,0.12)", borderWidth: 1, borderColor: "rgba(242,155,56,0.3)" },
-  quick: { flexDirection: "row", alignItems: "center", gap: 7, height: 38, paddingHorizontal: 14, borderRadius: 19, backgroundColor: "rgba(33,31,59,0.85)", borderWidth: 1, borderColor: colors.border },
+  streak: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, height: 34, borderRadius: 10, backgroundColor: "rgba(242,155,56,0.12)", borderWidth: 1, borderColor: "rgba(242,155,56,0.3)" },
+  quick: { flexDirection: "row", alignItems: "center", gap: 7, height: 36, paddingHorizontal: 13, borderRadius: 10, backgroundColor: "rgba(33,31,59,0.85)", borderWidth: 1, borderColor: colors.border },
   hero: { borderRadius: radii.xl, padding: 20, paddingBottom: 22, overflow: "hidden", borderWidth: 1, borderColor: "rgba(217,121,162,0.28)" },
   heroGlow: { position: "absolute", width: 200, height: 200, borderRadius: 100, top: 40, alignSelf: "center", backgroundColor: "rgba(217,121,162,0.09)" },
   heroHead: { flexDirection: "row", justifyContent: "space-between" },
-  rulerPill: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 10, marginTop: 18, paddingHorizontal: 18, height: 50, borderRadius: 25, backgroundColor: "rgba(11,11,26,0.55)", borderWidth: 1, borderColor: colors.border },
+  rulerPill: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 10, marginTop: 18, paddingHorizontal: 18, height: 48, borderRadius: 14, backgroundColor: "rgba(11,11,26,0.55)", borderWidth: 1, borderColor: colors.border },
   colorDot: { width: 18, height: 18, borderRadius: 9, shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
   pillDivider: { width: 1, height: 24, backgroundColor: colors.borderStrong },
-  heroCta: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, marginTop: 18, paddingHorizontal: 22, height: 46, borderRadius: 23, borderWidth: 1.5, borderColor: "rgba(217,121,162,0.6)" },
+  heroCta: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, marginTop: 18, paddingHorizontal: 22, height: 46, borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(217,121,162,0.6)" },
   areaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
   areaCell: { width: "48.4%", padding: 15, borderRadius: radii.lg, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.border },
   areaTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   areaIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   card: { padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.border },
   cardHead: { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary },
+  iconBtn: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary },
   panchangRow: { flexDirection: "row", gap: 8, marginTop: 14 },
-  marker: { flex: 1, paddingVertical: 10, paddingHorizontal: 11, borderRadius: 14, backgroundColor: "rgba(235,226,250,0.05)" },
+  marker: { flex: 1, paddingVertical: 10, paddingHorizontal: 11, borderRadius: 10, backgroundColor: "rgba(235,226,250,0.05)" },
   actionWrap: { paddingTop: 18 },
-  actionBadge: { position: "absolute", top: 0, zIndex: 2, alignSelf: "center", paddingHorizontal: 18, paddingVertical: 9, borderRadius: 20, backgroundColor: "#2E2B4F", borderWidth: 1, borderColor: colors.borderStrong },
+  actionBadge: { position: "absolute", top: 0, zIndex: 2, alignSelf: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: "#2E2B4F", borderWidth: 1, borderColor: colors.borderStrong },
   action: { paddingHorizontal: 22, paddingTop: 36, paddingBottom: 24, borderRadius: radii.xl, borderWidth: 1, borderColor: "rgba(131,181,232,0.3)" },
-  actionBtn: { flexDirection: "row", alignItems: "center", gap: 9, height: 52, paddingHorizontal: 24, borderRadius: 26, overflow: "hidden", borderWidth: 1, borderColor: "rgba(240,160,189,0.4)" },
+  actionBtn: { flexDirection: "row", alignItems: "center", gap: 9, height: 50, paddingHorizontal: 22, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: "rgba(240,160,189,0.4)" },
   promo: { height: 250, borderRadius: radii.xl, padding: 20, overflow: "hidden", borderWidth: 1, borderColor: colors.borderStrong },
   promoOrbitA: { position: "absolute", width: 240, height: 240, borderRadius: 120, borderWidth: 1, borderColor: "rgba(242,200,121,0.14)", top: -80, right: -90 },
   promoOrbitB: { position: "absolute", width: 150, height: 150, borderRadius: 75, borderWidth: 1, borderColor: "rgba(168,160,232,0.2)", top: -35, right: -45 },
-  promoGlyph: { position: "absolute", top: 20, right: 20, width: 70, height: 70, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(11,11,26,0.45)" },
-  promoKicker: { alignSelf: "flex-start", paddingHorizontal: 11, paddingVertical: 6, borderRadius: 14, borderWidth: 1, borderColor: "rgba(242,200,121,0.4)" },
+  promoGlyph: { position: "absolute", top: 20, right: 20, width: 64, height: 64, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(11,11,26,0.45)" },
+  promoKicker: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: "rgba(242,200,121,0.4)" },
   promoFoot: { marginTop: "auto", flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  promoBtn: { flexDirection: "row", alignItems: "center", gap: 7, height: 44, paddingHorizontal: 18, borderRadius: 22, backgroundColor: colors.gold, overflow: "hidden" },
+  promoBtn: { flexDirection: "row", alignItems: "center", gap: 7, height: 44, paddingHorizontal: 18, borderRadius: 12, backgroundColor: colors.gold, overflow: "hidden" },
   note: { padding: 20, borderRadius: radii.xl, backgroundColor: colors.ivory },
   noteHead: { flexDirection: "row", alignItems: "center", gap: 12 },
   noteAvatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: colors.gold },
   noteBody: { color: "#3C3450", lineHeight: 24, marginTop: 14 },
   signal: { flexDirection: "row", gap: 8, alignItems: "flex-start", marginTop: 10 },
-  noteCta: { marginTop: 18, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingHorizontal: 18, borderRadius: 22, backgroundColor: colors.ink },
+  noteCta: { marginTop: 18, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingHorizontal: 18, borderRadius: 12, backgroundColor: colors.ink },
+  ritual: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radii.lg, backgroundColor: "rgba(28,24,40,0.95)", borderWidth: 1, borderColor: "rgba(242,200,121,0.22)" },
+  ritualIcon: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  writing: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 7, marginTop: 10, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "rgba(242,200,121,0.1)" },
   period: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radii.lg, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.border },
-  periodIcon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(168,160,232,0.13)" },
+  periodIcon: { width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(168,160,232,0.13)" },
   mini: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingBottom: 12, overflow: "hidden", borderBottomWidth: 1, borderBottomColor: colors.divider },
-  miniScore: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: colors.goldSoft },
+  miniScore: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: colors.goldSoft },
 }));

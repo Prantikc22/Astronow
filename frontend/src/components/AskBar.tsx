@@ -96,12 +96,12 @@ export function AskBar() {
 
 const useStyles = makeStyles((colors) => ({
   bar: {
-    height: 60,
-    borderRadius: 30,
+    height: 58,
+    borderRadius: 16,
     backgroundColor: colors.ivory,
     flexDirection: "row",
     alignItems: "center",
-    paddingLeft: 22,
+    paddingLeft: 18,
     paddingRight: 7,
     shadowColor: colors.gold,
     shadowRadius: 22,
@@ -111,5 +111,5 @@ const useStyles = makeStyles((colors) => ({
   placeholder: { position: "absolute", left: 0, right: 0 },
   placeholderText: { color: "#6E6680", fontSize: 16.5, fontFamily: fonts.body },
   input: { color: colors.ink, fontSize: 16.5, fontFamily: fonts.body, paddingVertical: 12 },
-  send: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
+  send: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 }));
