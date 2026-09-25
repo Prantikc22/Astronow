@@ -17,14 +17,13 @@ def _get(key: str, default: str = "") -> str:
 SUPABASE_URL = _get("SUPABASE_URL").rstrip("/")
 SUPABASE_ANON_KEY = _get("SUPABASE_ANON_KEY")
 SUPABASE_SERVICE_ROLE_KEY = _get("SUPABASE_SERVICE_ROLE_KEY")
-DATABASE_URL = _get("DATABASE_URL")
 
 OPENROUTER_API_KEY = _get("OPENROUTER_API_KEY")
 AI_MODELS = {
-    "fast": _get("AI_MODEL_FAST", "openai/gpt-4o-mini"),
-    "standard": _get("AI_MODEL_STANDARD", "openai/gpt-4o-mini"),
-    "deep": _get("AI_MODEL_DEEP", "openai/gpt-4o"),
-    "vision": _get("AI_MODEL_VISION", "openai/gpt-4o"),
+    "fast": _get("AI_MODEL_FAST", "deepseek/deepseek-v4-flash-0731"),
+    "standard": _get("AI_MODEL_STANDARD", "deepseek/deepseek-v4.1-flash"),
+    "deep": _get("AI_MODEL_DEEP", "deepseek/deepseek-v4-pro-0813"),
+    "vision": _get("AI_MODEL_VISION", "deepseek/deepseek-v4.1-flash"),
 }
 
 GOOGLE_PLACES_API_KEY = _get("GOOGLE_PLACES_API_KEY")
@@ -32,11 +31,14 @@ GOOGLE_PLACES_API_KEY = _get("GOOGLE_PLACES_API_KEY")
 REVENUECAT_IOS_API_KEY = _get("REVENUECAT_IOS_API_KEY")
 REVENUECAT_ANDROID_API_KEY = _get("REVENUECAT_ANDROID_API_KEY")
 
-FREE_CHAT_ALLOWANCE = int(_get("FREE_CHAT_ALLOWANCE", "3"))
-FAIRUSE_DAILY_MESSAGES = int(_get("FAIRUSE_DAILY_MESSAGES", "200"))
+FREE_CHAT_ALLOWANCE = int(_get("FREE_CHAT_ALLOWANCE", "10"))
+FAIRUSE_DAILY_MESSAGES = int(_get("FAIRUSE_DAILY_MESSAGES", "40"))
 
-DB_ENABLED = bool(DATABASE_URL)
+DB_ENABLED = bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
 AI_ENABLED = bool(OPENROUTER_API_KEY)
+CORS_ORIGINS = [origin.strip() for origin in _get(
+    "CORS_ORIGINS", "http://localhost:8081,http://localhost:3000"
+).split(",") if origin.strip()]
 
 # Default app config (also overridable from the app_config DB table / admin).
 DEFAULT_APP_CONFIG = {
@@ -48,7 +50,7 @@ DEFAULT_APP_CONFIG = {
         "reports": True,
         "puja_commerce": False,
         "products_commerce": False,
-        "lifetime_offer": True,
+        "lifetime_offer": False,
         "maintenance_mode": False,
     },
     "ai_models": AI_MODELS,
@@ -60,8 +62,12 @@ DEFAULT_APP_CONFIG = {
              "ref_price": {"INR": "\u20b9299", "USD": "$7.99"}},
             {"id": "annual", "period": "year", "recommended": True, "badge": "BEST VALUE",
              "ref_price": {"INR": "\u20b91,999", "USD": "$39.99"}},
-            {"id": "founder_lifetime", "period": "lifetime", "badge": "FOUNDING OFFER",
-             "ref_price": {"INR": "\u20b93,999", "USD": "$79.99"}},
+            {"id": "report_match", "period": "one_time", "type": "report",
+             "ref_price": {"INR": "\u20b9249", "USD": "$2.99"}, "list_price": {"INR": "\u20b9498", "USD": "$5.98"}, "discount": 50},
+            {"id": "report_artha_strategy", "period": "one_time", "type": "report",
+             "ref_price": {"INR": "\u20b9299", "USD": "$3.99"}, "list_price": {"INR": "\u20b9598", "USD": "$7.98"}, "discount": 50},
+            {"id": "report_12_year_compass", "period": "one_time", "type": "report",
+             "ref_price": {"INR": "\u20b9399", "USD": "$4.99"}, "list_price": {"INR": "\u20b9798", "USD": "$9.98"}, "discount": 50},
         ],
     },
     # Entitlement tiers considered "premium".
@@ -70,6 +76,9 @@ DEFAULT_APP_CONFIG = {
 
 # OpenRouter approximate pricing (USD per 1M tokens) for cost estimation.
 MODEL_PRICING = {
+    "deepseek/deepseek-v4-flash-0731": {"in": 0.04, "out": 0.08},
+    "deepseek/deepseek-v4.1-flash": {"in": 0.15, "out": 0.60},
+    "deepseek/deepseek-v4-pro-0813": {"in": 0.66, "out": 1.98},
     "openai/gpt-4o-mini": {"in": 0.15, "out": 0.60},
     "openai/gpt-4o": {"in": 2.50, "out": 10.0},
     "anthropic/claude-3.5-haiku": {"in": 0.80, "out": 4.0},

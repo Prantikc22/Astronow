@@ -1,4 +1,5 @@
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { Platform, StyleProp, View, ViewStyle } from "react-native";
 
@@ -21,9 +22,7 @@ export function GlassCard({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const inner = (
-    <View style={[padded && styles.pad, { flex: 0 }]}>{children}</View>
-  );
+  const inner = <View style={[padded && styles.pad, { flex: 0 }]}>{children}</View>;
 
   if (Platform.OS === "android" || Platform.OS === "web") {
     return (
@@ -31,7 +30,9 @@ export function GlassCard({
         testID={testID}
         style={[styles.solid, bordered && styles.border, style]}
       >
-        {inner}
+        <LinearGradient colors={["rgba(31,28,68,0.95)", "rgba(20,18,45,0.99)"]} style={{ flex: 0 }}>
+          {inner}
+        </LinearGradient>
       </View>
     );
   }
@@ -42,7 +43,12 @@ export function GlassCard({
       testID={testID}
       style={[styles.blur, bordered && styles.border, style]}
     >
-      <View style={[{ backgroundColor: colors.glassTint }, styles.fill]}>{inner}</View>
+      <LinearGradient
+        colors={["rgba(50,45,98,0.80)", colors.glassTint]}
+        style={styles.fill}
+      >
+        {inner}
+      </LinearGradient>
     </BlurView>
   );
 }
@@ -56,5 +62,5 @@ const useStyles = makeStyles((colors) => ({
     overflow: "hidden",
   },
   border: { borderWidth: 1, borderColor: colors.glassBorder },
-  pad: { padding: 16 },
+  pad: { padding: 18 },
 }));

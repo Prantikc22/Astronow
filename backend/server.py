@@ -1,15 +1,17 @@
-"""Cosmic Clarity API — portable FastAPI layer over Supabase (Auth + Postgres),
+"""AstroNow API — portable FastAPI layer over Supabase (Auth + Postgres),
 the deterministic Vedic engine, and the OpenRouter AI gateway."""
 from __future__ import annotations
 
 import json
 import logging
 import os
+import secrets
+import asyncio
 from datetime import date, datetime, time as dtime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
@@ -17,6 +19,7 @@ from starlette.middleware.cors import CORSMiddleware
 import ai_gateway
 import config
 import context_engine
+import daily_reading
 import db
 import geocode
 import interpret
@@ -29,10 +32,11 @@ from astro import (compatibility, constants as C, dasha as dasha_mod, engine,
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("server")
 
-app = FastAPI(title="Cosmic Clarity API")
+app = FastAPI(title="AstroNow API")
 api = APIRouter(prefix="/api")
 User = Depends(supa_auth.require_user)
-ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "cosmic-admin-dev")
+ReadingLanguage = Literal["en", "hi", "bn", "ta", "te", "es", "fr", "de", "pt"]
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 RC_SECRET = os.environ.get("REVENUECAT_SECRET_KEY", "")
 
 
@@ -40,7 +44,13 @@ RC_SECRET = os.environ.get("REVENUECAT_SECRET_KEY", "")
 # Helpers
 # --------------------------------------------------------------------------- #
 def _parse_date(s: str) -> date:
-    return datetime.strptime(s, "%Y-%m-%d").date()
+    try:
+        parsed = datetime.strptime(s, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise HTTPException(422, "Enter a valid date of birth in YYYY-MM-DD format.") from exc
+    if parsed > date.today():
+        raise HTTPException(422, "Date of birth cannot be in the future.")
+    return parsed
 
 
 def _parse_time(s: Optional[str]) -> Optional[dtime]:
@@ -51,7 +61,7 @@ def _parse_time(s: Optional[str]) -> Optional[dtime]:
             return datetime.strptime(s, fmt).time()
         except ValueError:
             continue
-    return None
+    raise HTTPException(422, "Enter a valid birth time in HH:MM format.")
 
 
 def birth_utc(dob: date, t: Optional[dtime], tz_offset: float, known: bool) -> datetime:
@@ -70,33 +80,44 @@ def compute_full(dob: date, t: Optional[dtime], lat: float, lon: float,
 
 
 async def get_profile(user_id: str) -> Optional[dict]:
-    return await db.fetchrow("select * from profiles where user_id=$1", user_id)
+    profile = await db.one("profiles", filters={"user_id": user_id})
+    if profile:
+        profile["birth_details_change_count"] = await db.count(
+            "analytics_events", filters={"user_id": user_id, "name": "birth_profile_corrected"})
+    return profile
 
 
 async def get_entitlement(user_id: str) -> dict:
-    row = await db.fetchrow("select tier, source, expires_at from entitlements where user_id=$1", user_id)
-    tier = (row or {}).get("tier", "free")
+    row = await db.one("entitlements", "tier,source,expires_at", filters={"user_id": user_id})
+    source = (row or {}).get("source")
+    # Never trust a row that could have been modified through an older client
+    # policy. Paid access is granted only after server-side RevenueCat verification.
+    trusted = source in {"revenuecat_verified", "founder_migration", "admin_grant"}
+    tier = (row or {}).get("tier", "free") if trusted else "free"
     premium = tier in config.DEFAULT_APP_CONFIG["premium_tiers"]
     exp = (row or {}).get("expires_at")
+    if isinstance(exp, str):
+        exp = datetime.fromisoformat(exp.replace("Z", "+00:00"))
     if premium and exp and exp < datetime.now(timezone.utc):
         premium, tier = False, "free"
-    return {"tier": tier, "premium": premium, "source": (row or {}).get("source")}
+    return {"tier": tier, "premium": premium, "source": source}
 
 
 async def load_chart(user_id: str) -> Optional[dict]:
-    row = await db.fetchrow("select chart, dasha, numerology from birth_charts where user_id=$1", user_id)
+    row = await db.one("birth_charts", "chart,dasha,numerology,computed_at", filters={"user_id": user_id})
     if not row:
         return None
     return {
         "chart": row["chart"] if isinstance(row["chart"], dict) else json.loads(row["chart"]),
         "dasha": (row["dasha"] if isinstance(row["dasha"], dict) else json.loads(row["dasha"])) if row["dasha"] else None,
         "numerology": (row["numerology"] if isinstance(row["numerology"], dict) else json.loads(row["numerology"])) if row["numerology"] else None,
+        "computed_at": row.get("computed_at"),
     }
 
 
 def _require_db():
     if not db.enabled():
-        raise HTTPException(503, "Persistence is not configured yet. Add DATABASE_URL to enable accounts and saving.")
+        raise HTTPException(503, "Supabase Data API is not configured yet.")
 
 
 # --------------------------------------------------------------------------- #
@@ -121,14 +142,8 @@ class RefreshIn(BaseModel):
 async def signup(body: SignupIn):
     session = await supa_auth.signup(body.email, body.password, body.first_name)
     if db.enabled():
-        await db.execute(
-            "insert into profiles(user_id, first_name) values($1,$2) on conflict (user_id) do nothing",
-            session["user"]["id"], body.first_name,
-        )
-        await db.execute(
-            "insert into entitlements(user_id, tier, source) values($1,'free','signup') on conflict (user_id) do nothing",
-            session["user"]["id"],
-        )
+        await db.insert("profiles", {"user_id": session["user"]["id"], "first_name": body.first_name}, upsert=True, on_conflict="user_id", ignore_duplicates=True)
+        await db.insert("entitlements", {"user_id": session["user"]["id"], "tier": "free", "source": "signup"}, upsert=True, on_conflict="user_id", ignore_duplicates=True)
     return session
 
 
@@ -161,10 +176,10 @@ async def delete_account(user: dict = User):
         now = datetime.now(timezone.utc)
         for tbl in ("saved_profiles", "conversations", "tarot_readings", "vastu_homes",
                     "compatibility_reports", "saved_items"):
-            await db.execute(f"update {tbl} set deleted_at=$1 where user_id=$2 and deleted_at is null", now, uid)
-        await db.execute("delete from birth_charts where user_id=$1", uid)
-        await db.execute("delete from messages where user_id=$1", uid)
-        await db.execute("delete from profiles where user_id=$1", uid)
+            await db.update(tbl, {"deleted_at": now}, filters={"user_id": uid, "deleted_at": None})
+        await db.delete("birth_charts", filters={"user_id": uid})
+        await db.delete("messages", filters={"user_id": uid})
+        await db.delete("profiles", filters={"user_id": uid})
     await supa_auth.delete_user(uid)
     return {"deleted": True}
 
@@ -198,42 +213,90 @@ class OnboardIn(BaseModel):
     relationship_status: Optional[str] = None
     interests: list[str] = Field(default_factory=list)
     terminology_mode: str = "both"
-    language: str = "en"
+    language: ReadingLanguage = "en"
 
 
 @api.post("/onboarding")
 async def onboarding(body: OnboardIn, user: dict = User):
     _require_db()
+    existing = await get_profile(user["id"])
+    if existing and existing.get("onboarded"):
+        raise HTTPException(409, "Birth details are already locked. Use the one-time correction flow.")
     dob = _parse_date(body.dob)
+    if body.birth_time_known and not body.birth_time:
+        raise HTTPException(422, "Birth time is required when marked as known.")
     t = _parse_time(body.birth_time) if body.birth_time_known else None
     tz_name = body.tz_name or geocode.tz_name_for(body.lat, body.lon) or "UTC"
     tz_offset = geocode.tz_offset_hours(tz_name, dob, t)
     full = compute_full(dob, t, body.lat, body.lon, tz_offset, body.birth_time_known, body.first_name)
 
-    await db.execute(
-        """insert into profiles(user_id,first_name,dob,birth_time,birth_time_known,birthplace,lat,lon,
-             tz_offset,tz_name,gender,relationship_status,interests,terminology_mode,language,onboarded,updated_at)
-           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,true,now())
-           on conflict (user_id) do update set first_name=$2,dob=$3,birth_time=$4,birth_time_known=$5,
-             birthplace=$6,lat=$7,lon=$8,tz_offset=$9,tz_name=$10,gender=$11,relationship_status=$12,
-             interests=$13,terminology_mode=$14,language=$15,onboarded=true,updated_at=now()""",
-        user["id"], body.first_name, dob, t, body.birth_time_known, body.birthplace, body.lat, body.lon,
-        tz_offset, tz_name, body.gender, body.relationship_status, json.dumps(body.interests),
-        body.terminology_mode, body.language,
-    )
-    await db.execute(
-        """insert into birth_charts(user_id,chart,dasha,numerology,computed_at)
-           values($1,$2,$3,$4,now())
-           on conflict (user_id) do update set chart=$2,dasha=$3,numerology=$4,computed_at=now()""",
-        user["id"], json.dumps(full["chart"]), json.dumps(full["dasha"]), json.dumps(full["numerology"]),
-    )
+    profile_values = {"user_id": user["id"], "first_name": body.first_name, "dob": dob,
+        "birth_time": t, "birth_time_known": body.birth_time_known, "birthplace": body.birthplace,
+        "lat": body.lat, "lon": body.lon, "tz_offset": tz_offset, "tz_name": tz_name,
+        "gender": body.gender, "relationship_status": body.relationship_status,
+        "interests": body.interests, "terminology_mode": body.terminology_mode,
+        "language": body.language, "onboarded": True, "updated_at": datetime.now(timezone.utc)}
+    await db.insert("profiles", profile_values, upsert=True, on_conflict="user_id")
+    await db.insert("birth_charts", {"user_id": user["id"], "chart": full["chart"],
+        "dasha": full["dasha"], "numerology": full["numerology"],
+        "computed_at": datetime.now(timezone.utc)}, upsert=True, on_conflict="user_id")
     await _track(user["id"], "onboarding_completed", {"interests": body.interests})
     return {"profile": await get_profile(user["id"]), **full}
 
 
+class BirthProfileCorrection(BaseModel):
+    dob: str
+    birth_time: Optional[str] = None
+    birth_time_known: bool = True
+    birthplace: Optional[str] = None
+    lat: float
+    lon: float
+    tz_name: Optional[str] = None
+
+
+@api.get("/birth-profile")
+async def birth_profile(user: dict = User):
+    _require_db()
+    profile = await get_profile(user["id"])
+    if not profile or not profile.get("onboarded"):
+        raise HTTPException(404, "Complete onboarding first.")
+    count = int(profile.get("birth_details_change_count") or 0)
+    return {"profile": profile, "locked": True, "changes_remaining": max(0, 1 - count)}
+
+
+@api.patch("/birth-profile")
+async def correct_birth_profile(body: BirthProfileCorrection, user: dict = User):
+    _require_db()
+    profile = await get_profile(user["id"])
+    if not profile or not profile.get("onboarded"):
+        raise HTTPException(404, "Complete onboarding first.")
+    if int(profile.get("birth_details_change_count") or 0) >= 1:
+        raise HTTPException(409, "Your one birth-detail correction has already been used. Contact support for a verified correction.")
+
+    dob = _parse_date(body.dob)
+    if body.birth_time_known and not body.birth_time:
+        raise HTTPException(422, "Birth time is required when marked as known.")
+    t = _parse_time(body.birth_time) if body.birth_time_known else None
+    tz_name = body.tz_name or geocode.tz_name_for(body.lat, body.lon) or "UTC"
+    tz_offset = geocode.tz_offset_hours(tz_name, dob, t)
+    full = compute_full(dob, t, body.lat, body.lon, tz_offset, body.birth_time_known, profile.get("first_name") or "friend")
+    # The correction event is server-only and acts as the immutable usage lock.
+    # This avoids requiring a direct Postgres connection while keeping all data
+    # inside the same Supabase project.
+    await db.update("profiles", {"dob": dob, "birth_time": t,
+        "birth_time_known": body.birth_time_known, "birthplace": body.birthplace,
+        "lat": body.lat, "lon": body.lon, "tz_offset": tz_offset, "tz_name": tz_name,
+        "updated_at": datetime.now(timezone.utc)}, filters={"user_id": user["id"]})
+    await db.insert("birth_charts", {"user_id": user["id"], "chart": full["chart"],
+        "dasha": full["dasha"], "numerology": full["numerology"],
+        "computed_at": datetime.now(timezone.utc)}, upsert=True, on_conflict="user_id")
+    await _track(user["id"], "birth_profile_corrected", {"changes_remaining": 0})
+    return {"profile": await get_profile(user["id"]), "locked": True, "changes_remaining": 0, **full}
+
+
 class ProfilePatch(BaseModel):
     terminology_mode: Optional[str] = None
-    language: Optional[str] = None
+    language: Optional[ReadingLanguage] = None
     relationship_status: Optional[str] = None
     interests: Optional[list[str]] = None
     first_name: Optional[str] = None
@@ -249,7 +312,7 @@ async def patch_profile(body: ProfilePatch, user: dict = User):
     for i, (k, v) in enumerate(fields.items(), start=2):
         sets.append(f"{k}=${i}")
         vals.append(json.dumps(v) if k == "interests" else v)
-    await db.execute(f"update profiles set {', '.join(sets)}, updated_at=now() where user_id=$1", user["id"], *vals)
+    await db.update("profiles", {**fields, "updated_at": datetime.now(timezone.utc)}, filters={"user_id": user["id"]})
     return await get_profile(user["id"])
 
 
@@ -300,49 +363,119 @@ def _energy_meter(transits: dict) -> dict:
     for k in scores:
         scores[k] = max(1, min(5, scores[k]))
     labels = {1: "Low", 2: "Reflective", 3: "Moderate", 4: "Strong", 5: "Excellent"}
-    return {k: {"value": v, "label": labels[v]} for k, v in scores.items()}
+    expanded = {
+        "self": scores["energy"],
+        "wellbeing": scores["energy"],
+        "career": scores["career"],
+        "money": max(1, min(5, round((scores["career"] * 2 + scores["energy"]) / 3))),
+        "love": scores["relationships"],
+        "family": max(1, min(5, round((scores["relationships"] * 2 + scores["energy"]) / 3))),
+        "learning": max(1, min(5, round((scores["career"] + scores["energy"]) / 2))),
+        "spiritual": max(1, min(5, round((scores["relationships"] + scores["energy"]) / 2))),
+    }
+    # Keep legacy keys while richer clients move to the eight daily-life areas.
+    expanded.update(scores)
+    return {k: {"value": v, "label": labels[v]} for k, v in expanded.items()}
+
+
+_daily_generation_tasks: dict[str, asyncio.Task] = {}
+
+
+async def _generate_and_cache_daily(cache_key: str, user_id: str, language: str, request: str) -> None:
+    """Generate daily prose outside the request path and persist it for reuse."""
+    try:
+        reading = None
+        for tier in ("fast", "standard"):
+            try:
+                candidate = await ai_gateway.generate_json(
+                    prompts.SYSTEM_PROMPT, request, tier=tier, retries=0,
+                    user_id=user_id, feature="today_insight",
+                )
+                if daily_reading.valid_reading(candidate, language, require_categories=True):
+                    reading = candidate
+                    break
+            except (ai_gateway.AIUnavailable, ValueError, KeyError, TypeError):
+                logger.warning("Daily reading generation failed with %s tier", tier)
+        if reading is not None:
+            existing = await db.one("saved_items", "id", filters={"user_id": user_id, "kind": cache_key})
+            if existing:
+                await db.update("saved_items", {"payload": reading}, filters={"id": existing["id"]})
+            else:
+                await db.insert("saved_items", {"user_id": user_id, "kind": cache_key, "payload": reading})
+    except Exception:  # noqa: BLE001 - a background refresh must never break /today
+        logger.exception("Background daily reading generation failed")
+    finally:
+        _daily_generation_tasks.pop(f"{user_id}:{cache_key}", None)
 
 
 @api.get("/today")
-async def today(user: dict = User):
+async def today(user: dict = User, day: Optional[str] = None):
     _require_db()
+    if day:
+        try:
+            reading_day = date.fromisoformat(day)
+        except ValueError as exc:
+            raise HTTPException(422, "Enter a valid reading date in YYYY-MM-DD format.") from exc
+    else:
+        reading_day = date.today()
+    if reading_day < date.today() or reading_day > date.today() + timedelta(days=1):
+        raise HTTPException(400, "Daily readings are available for today and tomorrow only.")
     data = await load_chart(user["id"])
     if not data:
         raise HTTPException(404, "Complete onboarding first.")
     profile = await get_profile(user["id"])
     chart, dashas = data["chart"], data["dasha"]
-    tr = transit_mod.compute_transits(chart)
+    as_of = datetime.now(timezone.utc) if reading_day == date.today() else datetime.combine(reading_day, dtime(hour=12), timezone.utc)
+    tr = transit_mod.compute_transits(chart, as_of=as_of)
     pan = None
     if profile and profile.get("lat") is not None:
         pan = panchang_mod.compute_panchang(
-            date.today(), profile["lat"], profile["lon"], profile.get("tz_offset") or 0.0)
+            reading_day, profile["lat"], profile["lon"], profile.get("tz_offset") or 0.0)
     name = profile.get("first_name") if profile else None
 
-    try:
-        ctx = {"transits": tr, "dasha": dashas, "panchang": pan}
-        insight = await ai_gateway.generate(
-            prompts.SYSTEM_PROMPT,
-            prompts.daily_insight_prompt(name or "friend", profile.get("terminology_mode", "both"))
-            + "\n\nCONTEXT:\n" + json.dumps(ctx, default=str),
-            tier="fast", user_id=user["id"], feature="today_insight",
-        )
-    except ai_gateway.AIUnavailable:
-        insight = interpret.daily_insight(name, chart, tr, dashas)
+    language = (profile or {}).get("language") or "en"
+    ctx = {"transits": tr, "dasha": dashas, "panchang": pan}
+    request = (
+        prompts.daily_insight_prompt(name or "friend", (profile or {}).get("terminology_mode", "both"), language, reading_day.isoformat())
+        + "\n\nCONTEXT:\n" + json.dumps(ctx, default=str)
+    )
+    chart_version = str(data.get("computed_at") or "v1").replace(":", "-")
+    cache_key = f"daily_reading:v3:{reading_day.isoformat()}:{language}:{chart_version}"
+    cached = await db.one("saved_items", "payload", filters={"user_id": user["id"], "kind": cache_key})
+    reading = (cached or {}).get("payload")
+    if not daily_reading.valid_reading(reading, language, require_categories=True):
+        reading = daily_reading.fallback_reading(language)
+        task_key = f"{user['id']}:{cache_key}"
+        if task_key not in _daily_generation_tasks:
+            _daily_generation_tasks[task_key] = asyncio.create_task(
+                _generate_and_cache_daily(cache_key, user["id"], language, request)
+            )
+        reading_status = "generating"
+    else:
+        reading_status = "ready"
 
-    hour = datetime.now(timezone.utc).hour
+    try:
+        from zoneinfo import ZoneInfo
+        local_now = datetime.now(ZoneInfo((profile or {}).get("tz_name") or "UTC"))
+    except Exception:  # pragma: no cover - defensive fallback for invalid legacy zones
+        local_now = datetime.now(timezone.utc) + timedelta(hours=float((profile or {}).get("tz_offset") or 0))
+    hour = local_now.hour
     greeting = "Good morning" if 5 <= hour < 12 else "Good afternoon" if 12 <= hour < 17 else "Good evening"
     md = dashas.get("current_mahadasha") or {}
-    daily_tarot = tarot_mod.draw("one", seed=int(date.today().strftime("%Y%m%d")))
+    daily_tarot = tarot_mod.draw("one", seed=int(reading_day.strftime("%Y%m%d")))
     await _track(user["id"], "today_viewed", {})
     return {
         "greeting": greeting,
         "name": name,
-        "date": date.today().isoformat(),
+        "date": reading_day.isoformat(),
         "energy": _energy_meter(tr),
         "moon_today": tr["moon_today"],
         "current_period": {"mahadasha": md.get("lord"),
                            "antardasha": (dashas.get("current_antardasha") or {}).get("lord")},
-        "insight": insight,
+        "insight": reading["theme"],
+        "reading": reading,
+        "reading_status": reading_status,
+        "language": language,
         "panchang": pan,
         "daily_tarot": daily_tarot,
         "terminology_mode": profile.get("terminology_mode", "both") if profile else "both",
@@ -399,7 +532,7 @@ async def get_terminology(mode: str = "both"):
 async def get_config():
     cfg = dict(config.DEFAULT_APP_CONFIG)
     if db.enabled():
-        rows = await db.fetch("select key, value from app_config")
+        rows = await db.select("app_config", "key,value")
         for r in rows:
             cfg[r["key"]] = r["value"]
     cfg["revenuecat"] = {
@@ -439,9 +572,8 @@ async def tarot_draw(body: TarotIn, user: dict = User):
             interpretation = "This reading invites reflection. " + " ".join(
                 f"{c['position']} — {c['name']} speaks to {c['keywords']}." for c in reading["cards"])
     if db.enabled():
-        await db.execute(
-            "insert into tarot_readings(user_id,spread,cards,note,interpretation) values($1,$2,$3,$4,$5)",
-            user["id"], body.spread, json.dumps(reading["cards"]), body.question, interpretation)
+        await db.insert("tarot_readings", {"user_id": user["id"], "spread": body.spread,
+            "cards": reading["cards"], "note": body.question, "interpretation": interpretation})
     await _track(user["id"], "tarot_completed", {"spread": body.spread})
     return {**reading, "interpretation": interpretation}
 
@@ -449,9 +581,8 @@ async def tarot_draw(body: TarotIn, user: dict = User):
 @api.get("/tarot/history")
 async def tarot_history(user: dict = User):
     _require_db()
-    rows = await db.fetch(
-        "select id,spread,cards,note,interpretation,created_at from tarot_readings "
-        "where user_id=$1 and deleted_at is null order by created_at desc limit 50", user["id"])
+    rows = await db.select("tarot_readings", "id,spread,cards,note,interpretation,created_at",
+        filters={"user_id": user["id"], "deleted_at": None}, order="created_at.desc", limit=50)
     return {"readings": rows}
 
 
@@ -492,16 +623,12 @@ async def compatibility_check(body: PartnerIn, user: dict = User):
         try:
             overview = await ai_gateway.generate(
                 prompts.SYSTEM_PROMPT,
-                f"Compatibility (Guna Milan) score {result['total']}/36 ({result['verdict']}). "
-                f"Kootas: {json.dumps(result['kootas'])}. Give a warm, balanced 3-paragraph overview of "
-                f"emotional compatibility, communication, and areas needing attention. Never tell them to "
-                f"marry or divorce. Person A moon {mine['chart']['moon_sign']}, Person B moon {partner['chart']['moon_sign']}.",
+                prompts.compatibility_prompt(result, mine["chart"], partner["chart"], body.relation),
                 tier="deep", user_id=user["id"], feature="compatibility")
         except ai_gateway.AIUnavailable:
             overview = None
-    await db.execute(
-        "insert into compatibility_reports(user_id,partner_name,relation,result) values($1,$2,$3,$4)",
-        user["id"], body.name, body.relation, json.dumps({**result, "partner_moon": partner["chart"]["moon_sign"]}))
+    await db.insert("compatibility_reports", {"user_id": user["id"], "partner_name": body.name,
+        "relation": body.relation, "result": {**result, "partner_moon": partner["chart"]["moon_sign"]}})
     await _track(user["id"], "compatibility_started", {"verdict": result["verdict"]})
     return {
         "guna_milan": result,
@@ -510,6 +637,20 @@ async def compatibility_check(body: PartnerIn, user: dict = User):
         "overview": overview,
         "locked": not ent["premium"],
     }
+
+
+@api.get("/compatibility/history")
+async def compatibility_history(user: dict = User):
+    """Return the user's recent saved matches without exposing another birth profile."""
+    _require_db()
+    rows = await db.select(
+        "compatibility_reports",
+        "id,partner_name,relation,result,created_at",
+        filters={"user_id": user["id"], "deleted_at": None},
+        order="created_at.desc",
+        limit=12,
+    )
+    return {"matches": rows}
 
 
 # --------------------------------------------------------------------------- #
@@ -544,11 +685,10 @@ async def vastu_analyze(body: VastuAnalyzeIn, user: dict = User):
             advice = None
     home_id = None
     if body.save and db.enabled():
-        home_id = await db.fetchval(
-            "insert into vastu_homes(user_id,name,rooms,north_rotation,analysis,source) "
-            "values($1,$2,$3,$4,$5,$6) returning id",
-            user["id"], body.name, json.dumps(body.rooms), body.north_rotation,
-            json.dumps(analysis), body.source)
+        home = await db.insert("vastu_homes", {"user_id": user["id"], "name": body.name,
+            "rooms": body.rooms, "north_rotation": body.north_rotation, "analysis": analysis,
+            "source": body.source}, returning=True)
+        home_id = home.get("id") if home else None
     await _track(user["id"], "vastu_completed", {"score": analysis["score"], "source": body.source})
     return {"id": str(home_id) if home_id else None, "analysis": analysis,
             "advice": advice, "premium": ent.get("premium", False)}
@@ -557,16 +697,15 @@ async def vastu_analyze(body: VastuAnalyzeIn, user: dict = User):
 @api.get("/vastu/homes")
 async def vastu_homes(user: dict = User):
     _require_db()
-    rows = await db.fetch(
-        "select id,name,rooms,north_rotation,analysis,source,created_at from vastu_homes "
-        "where user_id=$1 and deleted_at is null order by created_at desc", user["id"])
+    rows = await db.select("vastu_homes", "id,name,rooms,north_rotation,analysis,source,created_at",
+        filters={"user_id": user["id"], "deleted_at": None}, order="created_at.desc")
     return {"homes": rows}
 
 
 @api.delete("/vastu/homes/{home_id}")
 async def vastu_delete(home_id: str, user: dict = User):
     _require_db()
-    await db.execute("update vastu_homes set deleted_at=now() where id=$1 and user_id=$2", home_id, user["id"])
+    await db.update("vastu_homes", {"deleted_at": datetime.now(timezone.utc)}, filters={"id": home_id, "user_id": user["id"]})
     return {"deleted": True}
 
 
@@ -595,17 +734,16 @@ async def parse_floorplan(body: FloorplanIn, user: dict = User):
 @api.get("/conversations")
 async def list_conversations(user: dict = User):
     _require_db()
-    rows = await db.fetch(
-        "select id,title,summary,updated_at from conversations "
-        "where user_id=$1 and deleted_at is null order by updated_at desc", user["id"])
+    rows = await db.select("conversations", "id,title,summary,updated_at",
+        filters={"user_id": user["id"], "deleted_at": None}, order="updated_at.desc")
     return {"conversations": rows}
 
 
 @api.post("/conversations")
 async def create_conversation(user: dict = User):
     _require_db()
-    cid = await db.fetchval(
-        "insert into conversations(user_id) values($1) returning id", user["id"])
+    convo = await db.insert("conversations", {"user_id": user["id"]}, returning=True)
+    cid = convo.get("id") if convo else None
     await _track(user["id"], "ask_started", {})
     return {"id": str(cid), "title": "New conversation"}
 
@@ -613,18 +751,18 @@ async def create_conversation(user: dict = User):
 @api.get("/conversations/{cid}/messages")
 async def conversation_messages(cid: str, user: dict = User):
     _require_db()
-    convo = await db.fetchrow("select id,title,summary from conversations where id=$1 and user_id=$2", cid, user["id"])
+    convo = await db.one("conversations", "id,title,summary", filters={"id": cid, "user_id": user["id"]})
     if not convo:
         raise HTTPException(404, "Conversation not found.")
-    rows = await db.fetch(
-        "select id,role,content,created_at from messages where conversation_id=$1 order by created_at", cid)
+    rows = await db.select("messages", "id,role,content,created_at",
+        filters={"conversation_id": cid}, order="created_at.asc")
     return {"conversation": convo, "messages": rows}
 
 
 @api.delete("/conversations/{cid}")
 async def delete_conversation(cid: str, user: dict = User):
     _require_db()
-    await db.execute("update conversations set deleted_at=now() where id=$1 and user_id=$2", cid, user["id"])
+    await db.update("conversations", {"deleted_at": datetime.now(timezone.utc)}, filters={"id": cid, "user_id": user["id"]})
     return {"deleted": True}
 
 
@@ -632,16 +770,16 @@ async def _check_fair_use(user_id: str) -> None:
     ent = await get_entitlement(user_id)
     cfg = await get_config()
     if not ent["premium"]:
-        used = await db.fetchval(
-            "select count(*) from messages where user_id=$1 and role='user'", user_id) or 0
+        month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        used = await db.count("messages", filters={"user_id": user_id, "role": "user",
+            "created_at": ("gte", month_start.isoformat())})
         if used >= cfg.get("free_chat_allowance", config.FREE_CHAT_ALLOWANCE):
             raise HTTPException(402, json.dumps({"paywall": True,
-                "reason": "You've used your complimentary questions. Subscribe for ongoing guidance."}))
+                "reason": "You've used this month's complimentary messages. Join for more guidance, or come back next month."}))
     else:
         since = datetime.now(timezone.utc) - timedelta(days=1)
-        today_count = await db.fetchval(
-            "select count(*) from messages where user_id=$1 and role='user' and created_at>$2",
-            user_id, since) or 0
+        today_count = await db.count("messages", filters={"user_id": user_id, "role": "user",
+            "created_at": ("gt", since.isoformat())})
         if today_count >= cfg.get("fairuse_daily_messages", config.FAIRUSE_DAILY_MESSAGES):
             raise HTTPException(429, "Daily fair-use limit reached. Please continue tomorrow.")
 
@@ -670,11 +808,10 @@ async def send_message(cid: str, body: MessageIn, user: dict = User):
     _require_db()
     await _check_fair_use(user["id"])
     ctx, profile = await _assemble_context(user["id"], body.content)
-    await db.execute(
-        "insert into messages(conversation_id,user_id,role,content,topic) values($1,$2,'user',$3,$4)",
-        cid, user["id"], body.content, ctx["topic"])
-    history = await db.fetch(
-        "select role,content from messages where conversation_id=$1 order by created_at desc limit 8", cid)
+    await db.insert("messages", {"conversation_id": cid, "user_id": user["id"], "role": "user",
+        "content": body.content, "topic": ctx["topic"]})
+    history = await db.select("messages", "role,content", filters={"conversation_id": cid},
+        order="created_at.desc", limit=8)
     msgs = [{"role": m["role"], "content": m["content"]} for m in reversed(history)]
     msgs.insert(0, {"role": "user", "content": "CONTEXT:\n" + json.dumps(ctx, default=str)})
     try:
@@ -685,10 +822,8 @@ async def send_message(cid: str, body: MessageIn, user: dict = User):
         reply = "".join(parts) or interpret.chat_reply(body.content, ctx)
     except ai_gateway.AIUnavailable:
         reply = interpret.chat_reply(body.content, ctx)
-    await db.execute(
-        "insert into messages(conversation_id,user_id,role,content) values($1,$2,'assistant',$3)",
-        cid, user["id"], reply)
-    await db.execute("update conversations set updated_at=now() where id=$1", cid)
+    await db.insert("messages", {"conversation_id": cid, "user_id": user["id"], "role": "assistant", "content": reply})
+    await db.update("conversations", {"updated_at": datetime.now(timezone.utc)}, filters={"id": cid})
     await _maybe_title(cid, body.content)
     await _track(user["id"], "message_sent", {"topic": ctx["topic"]})
     return {"reply": reply, "topic": ctx["topic"]}
@@ -699,11 +834,10 @@ async def ask_stream(cid: str, body: MessageIn, user: dict = User):
     _require_db()
     await _check_fair_use(user["id"])
     ctx, _ = await _assemble_context(user["id"], body.content)
-    await db.execute(
-        "insert into messages(conversation_id,user_id,role,content,topic) values($1,$2,'user',$3,$4)",
-        cid, user["id"], body.content, ctx["topic"])
-    history = await db.fetch(
-        "select role,content from messages where conversation_id=$1 order by created_at desc limit 8", cid)
+    await db.insert("messages", {"conversation_id": cid, "user_id": user["id"], "role": "user",
+        "content": body.content, "topic": ctx["topic"]})
+    history = await db.select("messages", "role,content", filters={"conversation_id": cid},
+        order="created_at.desc", limit=8)
     msgs = [{"role": m["role"], "content": m["content"]} for m in reversed(history)]
     msgs.insert(0, {"role": "user", "content": "CONTEXT:\n" + json.dumps(ctx, default=str)})
 
@@ -715,23 +849,35 @@ async def ask_stream(cid: str, body: MessageIn, user: dict = User):
                 parts.append(chunk)
                 yield chunk
         except ai_gateway.AIUnavailable:
+            if parts:
+                interruption = "\n\nI couldn't finish that thought. Please ask again."
+                parts.append(interruption)
+                yield interruption
+            else:
+                fallback = interpret.chat_reply(body.content, ctx)
+                parts.append(fallback)
+                yield fallback
+        except Exception:
+            logger.exception("AI chat stream failed")
+            fallback = "\n\nI couldn't finish that thought. Please ask again." if parts else interpret.chat_reply(body.content, ctx)
+            parts.append(fallback)
+            yield fallback
+        if not parts:
             fallback = interpret.chat_reply(body.content, ctx)
             parts.append(fallback)
             yield fallback
         reply = "".join(parts)
-        await db.execute(
-            "insert into messages(conversation_id,user_id,role,content) values($1,$2,'assistant',$3)",
-            cid, user["id"], reply)
-        await db.execute("update conversations set updated_at=now() where id=$1", cid)
+        await db.insert("messages", {"conversation_id": cid, "user_id": user["id"], "role": "assistant", "content": reply})
+        await db.update("conversations", {"updated_at": datetime.now(timezone.utc)}, filters={"id": cid})
 
     return StreamingResponse(gen(), media_type="text/plain")
 
 
 async def _maybe_title(cid: str, first_msg: str) -> None:
-    convo = await db.fetchrow("select title from conversations where id=$1", cid)
+    convo = await db.one("conversations", "title", filters={"id": cid})
     if convo and convo["title"] == "New conversation":
         title = first_msg.strip()[:40] + ("…" if len(first_msg) > 40 else "")
-        await db.execute("update conversations set title=$1 where id=$2", title, cid)
+        await db.update("conversations", {"title": title}, filters={"id": cid})
 
 
 # --------------------------------------------------------------------------- #
@@ -754,25 +900,28 @@ async def entitlement(user: dict = User):
 @api.post("/entitlement/sync")
 async def entitlement_sync(body: EntitlementSync, user: dict = User):
     _require_db()
-    tier, source, expires = body.tier, body.source, body.expires_at
-    # Server-side verification when a RevenueCat secret key is configured.
-    if RC_SECRET and body.rc_customer_id:
-        try:
-            async with httpx.AsyncClient(timeout=20) as c:
-                r = await c.get(f"https://api.revenuecat.com/v1/subscribers/{body.rc_customer_id}",
-                                headers={"Authorization": f"Bearer {RC_SECRET}"})
-                if r.status_code == 200:
-                    ents = r.json().get("subscriber", {}).get("entitlements", {})
-                    tier, expires = _tier_from_rc(ents)
-                    source = "revenuecat_verified"
-        except Exception as e:  # noqa: BLE001
-            logger.warning("RC verify failed: %s", e)
+    if not RC_SECRET:
+        raise HTTPException(503, "Purchase verification is not configured on the server.")
+    if not body.rc_customer_id or body.rc_customer_id != user["id"]:
+        raise HTTPException(403, "RevenueCat customer identity does not match this account.")
+    try:
+        async with httpx.AsyncClient(timeout=20) as c:
+            r = await c.get(f"https://api.revenuecat.com/v1/subscribers/{body.rc_customer_id}",
+                            headers={"Authorization": f"Bearer {RC_SECRET}"})
+        if r.status_code != 200:
+            raise HTTPException(502, "Could not verify the purchase with RevenueCat.")
+        ents = r.json().get("subscriber", {}).get("entitlements", {})
+        tier, expires = _tier_from_rc(ents)
+        source = "revenuecat_verified"
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.warning("RC verify failed: %s", e)
+        raise HTTPException(502, "Could not verify the purchase with RevenueCat.") from e
     exp_dt = datetime.fromisoformat(expires.replace("Z", "+00:00")) if expires else None
-    await db.execute(
-        """insert into entitlements(user_id,tier,source,rc_customer_id,expires_at,updated_at)
-           values($1,$2,$3,$4,$5,now())
-           on conflict (user_id) do update set tier=$2,source=$3,rc_customer_id=$4,expires_at=$5,updated_at=now()""",
-        user["id"], tier, source, body.rc_customer_id, exp_dt)
+    await db.insert("entitlements", {"user_id": user["id"], "tier": tier, "source": source,
+        "rc_customer_id": body.rc_customer_id, "expires_at": exp_dt,
+        "updated_at": datetime.now(timezone.utc)}, upsert=True, on_conflict="user_id")
     await _track(user["id"], "purchase_completed", {"tier": tier})
     return await get_entitlement(user["id"])
 
@@ -798,8 +947,7 @@ class AnalyticsIn(BaseModel):
 async def _track(user_id: Optional[str], name: str, props: dict) -> None:
     if db.enabled():
         try:
-            await db.execute("insert into analytics_events(user_id,name,props) values($1,$2,$3)",
-                             user_id, name, json.dumps(props))
+            await db.insert("analytics_events", {"user_id": user_id, "name": name, "props": props})
         except Exception:  # noqa: BLE001
             pass
 
@@ -811,28 +959,27 @@ async def analytics(body: AnalyticsIn, user: dict = User):
 
 
 def _admin(token: Optional[str]) -> None:
-    if token != ADMIN_TOKEN:
+    if not ADMIN_TOKEN or not token or not secrets.compare_digest(token, ADMIN_TOKEN):
         raise HTTPException(403, "Admin authorization required.")
 
 
 @api.get("/admin/stats")
-async def admin_stats(x_admin_token: Optional[str] = Query(None, alias="admin_token")):
+async def admin_stats(x_admin_token: Optional[str] = Header(None)):
     _admin(x_admin_token)
     if not db.enabled():
         return {"persistence": False}
-    users = await db.fetchval("select count(*) from profiles") or 0
-    paid = await db.fetchval(
-        "select count(*) from entitlements where tier <> 'free'") or 0
+    users = await db.count("profiles")
+    paid = await db.count("entitlements", filters={"tier": ("neq", "free")})
     since_month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     today = datetime.now(timezone.utc) - timedelta(days=1)
-    cost_today = await db.fetchval(
-        "select coalesce(sum(cost_input+cost_output),0) from usage_events where created_at>$1", today) or 0
-    cost_month = await db.fetchval(
-        "select coalesce(sum(cost_input+cost_output),0) from usage_events where created_at>$1", since_month) or 0
-    chats = await db.fetchval("select count(*) from messages where role='user'") or 0
-    vastu = await db.fetchval("select count(*) from vastu_homes") or 0
-    dau = await db.fetchval(
-        "select count(distinct user_id) from analytics_events where created_at>$1", today) or 0
+    usage_today = await db.select("usage_events", "cost_input,cost_output", filters={"created_at": ("gt", today.isoformat())})
+    usage_month = await db.select("usage_events", "cost_input,cost_output", filters={"created_at": ("gt", since_month.isoformat())})
+    cost_today = sum(float(r.get("cost_input") or 0) + float(r.get("cost_output") or 0) for r in usage_today)
+    cost_month = sum(float(r.get("cost_input") or 0) + float(r.get("cost_output") or 0) for r in usage_month)
+    chats = await db.count("messages", filters={"role": "user"})
+    vastu = await db.count("vastu_homes")
+    active = await db.select("analytics_events", "user_id", filters={"created_at": ("gt", today.isoformat())})
+    dau = len({r.get("user_id") for r in active if r.get("user_id")})
     return {
         "persistence": True, "users": users, "paid_users": paid, "dau": dau,
         "ai_cost_today_usd": round(float(cost_today), 4), "ai_cost_month_usd": round(float(cost_month), 4),
@@ -843,12 +990,12 @@ async def admin_stats(x_admin_token: Optional[str] = Query(None, alias="admin_to
 
 @api.get("/")
 async def root():
-    return {"app": "Cosmic Clarity", "status": "ok",
+    return {"app": "AstroNow", "status": "ok",
             "persistence": db.enabled(), "ai": config.AI_ENABLED}
 
 
 app.include_router(api)
-app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"],
+app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=config.CORS_ORIGINS,
                    allow_methods=["*"], allow_headers=["*"])
 
 

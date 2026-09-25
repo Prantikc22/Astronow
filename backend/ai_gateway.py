@@ -28,7 +28,7 @@ def _headers() -> dict:
         "Authorization": f"Bearer {config.OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://cosmicclarity.app",
-        "X-Title": "Cosmic Clarity",
+        "X-Title": "AstroNow",
     }
 
 
@@ -43,12 +43,9 @@ async def _log_usage(user_id: Optional[str], feature: str, model: str, usage: di
     it = usage.get("prompt_tokens", 0)
     ot = usage.get("completion_tokens", 0)
     try:
-        await db.execute(
-            """insert into usage_events(user_id,feature,model,input_tokens,output_tokens,cost_input,cost_output)
-               values($1,$2,$3,$4,$5,$6,$7)""",
-            user_id, feature, model, it, ot,
-            it * pin["in"] / 1_000_000, ot * pin["out"] / 1_000_000,
-        )
+        await db.insert("usage_events", {"user_id": user_id, "feature": feature, "model": model,
+            "input_tokens": it, "output_tokens": ot, "cost_input": it * pin["in"] / 1_000_000,
+            "cost_output": ot * pin["out"] / 1_000_000})
     except Exception as e:  # noqa: BLE001
         logger.warning("usage log failed: %s", e)
 
@@ -124,6 +121,8 @@ async def stream(system: str, messages: list[dict], tier: str = "standard",
                  user_id: Optional[str] = None, feature: str = "chat",
                  temperature: float = 0.7) -> AsyncGenerator[str, None]:
     """Yield text chunks. Falls back to a single grounded message upstream."""
+    if not config.AI_ENABLED:
+        raise AIUnavailable()
     model = _model(tier)
     payload = {
         "model": model,
@@ -131,20 +130,24 @@ async def stream(system: str, messages: list[dict], tier: str = "standard",
         "temperature": temperature,
         "stream": True,
     }
-    async with httpx.AsyncClient(timeout=120) as c:
-        async with c.stream("POST", _URL, headers=_headers(), json=payload) as r:
-            if r.status_code != 200:
-                raise AIUnavailable()
-            async for line in r.aiter_lines():
-                if not line or not line.startswith("data:"):
-                    continue
-                chunk = line[5:].strip()
-                if chunk == "[DONE]":
-                    break
-                try:
-                    obj = json.loads(chunk)
-                    delta = obj["choices"][0]["delta"].get("content")
-                    if delta:
-                        yield delta
-                except (json.JSONDecodeError, KeyError, IndexError):
-                    continue
+    try:
+        async with httpx.AsyncClient(timeout=120) as c:
+            async with c.stream("POST", _URL, headers=_headers(), json=payload) as r:
+                if r.status_code != 200:
+                    raise AIUnavailable()
+                async for line in r.aiter_lines():
+                    if not line or not line.startswith("data:"):
+                        continue
+                    chunk = line[5:].strip()
+                    if chunk == "[DONE]":
+                        break
+                    try:
+                        obj = json.loads(chunk)
+                        delta = obj["choices"][0]["delta"].get("content")
+                        if delta:
+                            yield delta
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue
+    except httpx.HTTPError as exc:
+        logger.warning("OpenRouter stream unavailable: %s", exc)
+        raise AIUnavailable() from exc

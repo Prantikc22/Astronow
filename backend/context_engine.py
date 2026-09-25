@@ -48,6 +48,8 @@ def build_context(question: str, chart: dict, dasha: dict | None,
         "profile": {
             "name": profile.get("first_name"),
             "terminology": profile.get("terminology_mode", "both"),
+            "language": profile.get("language", "en"),
+            "astrology_system": "vedic_sidereal_lahiri",
             "birth_time_known": chart.get("birth_time_known", True),
         },
         "natal": {

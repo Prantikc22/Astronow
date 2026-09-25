@@ -1,110 +1,107 @@
-import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import { ActivityIndicator, Pressable, StyleProp, ViewStyle } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { ActivityIndicator, StyleProp, ViewStyle } from "react-native";
 
 import { AppText } from "@/src/components/AppText";
 import { Icon, type FeatherName } from "@/src/components/Icon";
+import { MotionPressable } from "@/src/components/MotionPressable";
+import { Shine } from "@/src/components/Shine";
 import { makeStyles, radii, useTheme } from "@/src/theme";
+import type { HapticName } from "@/src/utils/haptics";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "rose";
 
 export function Button({
   label,
   onPress,
   variant = "primary",
   icon,
+  iconRight,
   loading,
   disabled,
   style,
   testID,
   full = true,
+  haptic = "medium",
+  shine,
 }: {
   label: string;
   onPress: () => void;
   variant?: Variant;
   icon?: FeatherName;
+  iconRight?: FeatherName;
   loading?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
   full?: boolean;
+  haptic?: HapticName;
+  /** Adds a periodic light sweep — reserve for the one primary action on a screen. */
+  shine?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const scale = useSharedValue(1);
-  const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const isDisabled = disabled || loading;
-
+  const filled = variant === "primary" || variant === "rose";
   const onColor = variant === "primary" ? colors.onBrandPrimary : colors.onSurface;
-
-  const content = (
-    <>
-      {loading ? (
-        <ActivityIndicator color={onColor} />
-      ) : (
-        <>
-          {icon ? <Icon name={icon} size={18} color={onColor} /> : null}
-          <AppText variant="label" style={{ color: onColor, fontSize: 15 }}>
-            {label}
-          </AppText>
-        </>
-      )}
-    </>
-  );
+  const fill: [string, string, ...string[]] = variant === "primary"
+    ? [colors.goldSoft, colors.gold, "#E3A866"]
+    : variant === "rose"
+      ? ["#B4447A", "#8A2A5E", "#5E1F48"]
+      : variant === "secondary"
+        ? ["rgba(50,45,98,0.98)", "rgba(27,24,57,0.98)"]
+        : ["transparent", "transparent"];
 
   return (
-    <Animated.View style={[anim, full && { alignSelf: "stretch" }, style]}>
-      <Pressable
-        testID={testID}
-        disabled={isDisabled}
-        onPressIn={() => (scale.value = withSpring(0.97, { damping: 18 }))}
-        onPressOut={() => (scale.value = withSpring(1, { damping: 18 }))}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-          onPress();
-        }}
-        style={{ opacity: isDisabled ? 0.55 : 1 }}
+    <MotionPressable
+      testID={testID}
+      disabled={isDisabled}
+      haptic={haptic}
+      onPress={onPress}
+      style={[full && { alignSelf: "stretch" }, filled && !isDisabled && styles.glow, filled && variant === "rose" && { shadowColor: "#B4447A" }, style]}
+    >
+      <LinearGradient
+        colors={fill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.base, variant === "secondary" && styles.secondary, variant === "ghost" && styles.ghost]}
       >
-        {variant === "primary" ? (
-          <LinearGradient
-            colors={[colors.goldSoft, colors.gold]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.base}
-          >
-            {content}
-          </LinearGradient>
+        {loading ? (
+          <ActivityIndicator color={onColor} />
         ) : (
-          <Animated.View
-            style={[
-              styles.base,
-              variant === "secondary" ? styles.secondary : styles.ghost,
-            ]}
-          >
-            {content}
-          </Animated.View>
+          <>
+            {icon ? <Icon name={icon} size={18} color={onColor} weight="bold" /> : null}
+            <AppText variant="label" style={{ color: onColor, fontSize: 15.5, letterSpacing: 0.2 }}>{label}</AppText>
+            {iconRight ? <Icon name={iconRight} size={18} color={onColor} weight="bold" /> : null}
+          </>
         )}
-      </Pressable>
-    </Animated.View>
+        {shine && filled && !isDisabled ? <Shine /> : null}
+      </LinearGradient>
+    </MotionPressable>
   );
 }
 
 const useStyles = makeStyles((colors) => ({
   base: {
-    minHeight: 52,
+    minHeight: 56,
     borderRadius: radii.pill,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 22,
+    gap: 9,
+    paddingHorizontal: 24,
+    overflow: "hidden",
+  },
+  glow: {
+    shadowColor: colors.gold,
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   secondary: {
-    backgroundColor: colors.brandTertiary,
     borderWidth: 1,
     borderColor: colors.glassBorder,
   },
-  ghost: { backgroundColor: "transparent" },
+  ghost: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.borderStrong },
 }));

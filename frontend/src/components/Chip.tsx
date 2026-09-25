@@ -1,8 +1,8 @@
-import * as Haptics from "expo-haptics";
 import React from "react";
-import { Pressable, ViewStyle } from "react-native";
+import { ViewStyle } from "react-native";
 
 import { AppText } from "@/src/components/AppText";
+import { MotionPressable } from "@/src/components/MotionPressable";
 import { makeStyles, radii, useTheme } from "@/src/theme";
 
 export function Chip({
@@ -21,18 +21,15 @@ export function Chip({
   const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <Pressable
+    <MotionPressable
       testID={testID}
-      onPress={() => {
-        Haptics.selectionAsync().catch(() => {});
-        onPress?.();
-      }}
+      onPress={onPress}
       style={[styles.chip, selected && styles.selected, style]}
     >
       <AppText variant="label" style={{ color: selected ? colors.onBrandPrimary : colors.onSurface }}>
         {label}
       </AppText>
-    </Pressable>
+    </MotionPressable>
   );
 }
 

@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { api } from "@/src/api/client";
 import { AppText } from "@/src/components/AppText";
 import { GlassCard } from "@/src/components/GlassCard";
 import { Icon } from "@/src/components/Icon";
+import { MotionPressable } from "@/src/components/MotionPressable";
 import { ErrorState, Loading, Screen } from "@/src/components/Screen";
 import { useTerms } from "@/src/hooks";
-import { makeStyles, radii, useTheme } from "@/src/theme";
+import { makeStyles, useTheme } from "@/src/theme";
 
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -34,18 +36,21 @@ export default function Calendar() {
   });
 
   return (
-    <Screen title={t("panchang", "Daily Calendar")} subtitle="Vedic timing for any day">
+    <Screen>
+      <AppText variant="caption" style={{ color: colors.teal, letterSpacing: 1.3, fontSize: 9 }}>VEDIC TIMEKEEPING</AppText>
+      <AppText variant="display">{t("panchang", "Daily Calendar")}</AppText>
+      <AppText variant="body" muted style={{ marginTop: 5 }}>The quality and rhythm of each day, calculated for your location.</AppText>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 10, paddingVertical: 4, paddingRight: 20 }}>
+        contentContainerStyle={{ gap: 9, paddingTop: 22, paddingBottom: 6, paddingRight: 20 }}>
         {days.map((d) => {
           const sel = d.toDateString() === selected.toDateString();
           return (
-            <Pressable key={d.toISOString()} onPress={() => setSelected(d)}
+            <MotionPressable key={d.toISOString()} onPress={() => setSelected(d)}
               style={[styles.dayPill, sel && { backgroundColor: colors.gold, borderColor: colors.gold }]}
               testID={`cal-day-${d.getDate()}`}>
               <AppText variant="caption" style={{ color: sel ? colors.onBrandPrimary : colors.muted }}>{WD[d.getDay()]}</AppText>
               <AppText variant="subtitle" style={{ color: sel ? colors.onBrandPrimary : colors.onSurface }}>{d.getDate()}</AppText>
-            </Pressable>
+            </MotionPressable>
           );
         })}
       </ScrollView>
@@ -54,9 +59,17 @@ export default function Calendar() {
       {isError ? <ErrorState onRetry={refetch} /> : null}
 
       {data ? (
-        <View style={{ gap: 16, marginTop: 16 }}>
-          <GlassCard testID="cal-panchang">
-            <AppText variant="label" muted>{data.weekday} · {data.paksha} Paksha</AppText>
+        <View style={{ gap: 16, marginTop: 18 }}>
+          <Animated.View entering={FadeInDown.duration(420)}>
+          <GlassCard testID="cal-panchang" style={{ backgroundColor: "#17162F" }}>
+            <View style={styles.calHeroTop}>
+              <View>
+                <AppText variant="caption" style={{ color: colors.coralSoft, letterSpacing: 1 }}>{data.weekday?.toUpperCase()} · {data.paksha?.toUpperCase()} PAKSHA</AppText>
+                <AppText variant="hero" style={{ marginTop: 8 }}>{selected.getDate()}</AppText>
+                <AppText variant="subtitle">{selected.toLocaleString("en", { month: "long" })}</AppText>
+              </View>
+              <View style={styles.dayOrb}><Icon name="sun" size={28} color={colors.gold} /></View>
+            </View>
             <View style={styles.grid}>
               <Cell label={t("tithi", "Tithi")} value={data.tithi?.name} />
               <Cell label={t("nakshatra", "Nakshatra")} value={data.nakshatra?.name} />
@@ -64,6 +77,7 @@ export default function Calendar() {
               <Cell label={t("karana", "Karana")} value={data.karana?.name} />
             </View>
           </GlassCard>
+          </Animated.View>
 
           {data.sunrise ? (
             <GlassCard>
@@ -118,10 +132,12 @@ function Cell({ label, value }: { label: string; value?: string }) {
 
 const useStyles = makeStyles((colors) => ({
   dayPill: {
-    width: 56, height: 68, borderRadius: radii.lg, alignItems: "center", justifyContent: "center", gap: 4,
+    width: 54, height: 72, borderRadius: 27, alignItems: "center", justifyContent: "center", gap: 4,
     backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.border,
   },
   grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 16, columnGap: 16, marginTop: 14 },
+  calHeroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 18, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  dayOrb: { width: 70, height: 70, borderRadius: 35, backgroundColor: "rgba(226,185,131,0.10)", borderWidth: 1, borderColor: colors.glassBorder, alignItems: "center", justifyContent: "center" },
   sunRow: { flexDirection: "row", justifyContent: "space-around" },
   sunItem: { flexDirection: "row", alignItems: "center", gap: 8 },
 }));

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="65%" cy="25%" r="90%">
+      <stop offset="0" stop-color="#292351"/>
+      <stop offset="0.58" stop-color="#121127"/>
+      <stop offset="1" stop-color="#0B0B1A"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F8DFA8"/>
+      <stop offset="1" stop-color="#D49A4F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <ellipse cx="512" cy="512" rx="348" ry="238" fill="none" stroke="#A8A0E8" stroke-width="24" stroke-dasharray="34 30" opacity=".43" transform="rotate(-18 512 512)"/>
+  <path d="M170 525c94-148 209-218 342-218s248 70 342 218C760 667 645 737 512 737S264 667 170 525Z" fill="#0B0B1A" stroke="url(#gold)" stroke-width="38" stroke-linejoin="round"/>
+  <circle cx="512" cy="525" r="125" fill="none" stroke="url(#gold)" stroke-width="34"/>
+  <circle cx="512" cy="525" r="49" fill="#E896A8"/>
+  <g fill="none" stroke="#F8DFA8" stroke-width="25" stroke-linecap="round">
+    <path d="M780 160v125M718 223h125"/>
+    <path d="m739 181 83 83M822 181l-83 83" opacity=".62"/>
+  </g>
+</svg>

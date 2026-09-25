@@ -1,11 +1,12 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText } from "@/src/components/AppText";
 import { CosmicBackground } from "@/src/components/CosmicBackground";
 import { Icon } from "@/src/components/Icon";
+import { MotionPressable } from "@/src/components/MotionPressable";
 import { makeStyles, useTheme } from "@/src/theme";
 
 export function Screen({
@@ -38,9 +39,9 @@ export function Screen({
     <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
         {back ? (
-          <Pressable onPress={() => router.back()} hitSlop={12} testID="screen-back">
+          <MotionPressable onPress={() => router.back()} hitSlop={12} testID="screen-back">
             <Icon name="chevron-left" size={26} color={colors.onSurface} />
-          </Pressable>
+          </MotionPressable>
         ) : null}
         <View style={{ flex: 1 }}>
           <AppText variant="title" numberOfLines={1}>{title}</AppText>
@@ -89,9 +90,9 @@ export function ErrorState({ message, onRetry }: { message?: string; onRetry?: (
       <Icon name="cloud-off" size={28} color={colors.muted} />
       <AppText variant="body" muted center>{message || "We couldn't reconnect with the cosmos. Please try again."}</AppText>
       {onRetry ? (
-        <Pressable onPress={onRetry} testID="retry-btn">
+        <MotionPressable onPress={onRetry} testID="retry-btn" haptic="light">
           <AppText variant="label" style={{ color: colors.gold }}>Try again</AppText>
-        </Pressable>
+        </MotionPressable>
       ) : null}
     </View>
   );

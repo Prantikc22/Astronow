@@ -1,4 +1,4 @@
--- Cosmic Clarity — initial schema (Supabase / Postgres).
+-- AstroNow — initial schema (Supabase / Postgres).
 -- All app tables key on the Supabase auth user id. The FastAPI service connects
 -- with elevated privileges and ALWAYS filters by user_id; RLS policies below are
 -- defense-in-depth for any direct client access.
@@ -158,7 +158,9 @@ create table if not exists app_config (
   updated_at timestamptz default now()
 );
 
--- Enable RLS (defense in depth). Service role bypasses these.
+-- Clients may read their own records. All writes go through the authenticated
+-- API, which applies the birth-detail, usage and purchase rules. The service
+-- role / database owner bypasses RLS for those server-side writes.
 do $$
 declare t text;
 begin
@@ -170,6 +172,9 @@ begin
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists own_rows on %I', t);
     execute format(
-      'create policy own_rows on %I using (auth.uid() = user_id) with check (auth.uid() = user_id)', t);
+      'create policy own_read on %I for select to authenticated using (auth.uid() = user_id)', t);
   end loop;
 end $$;
+
+alter table app_config enable row level security;
+create policy config_read on app_config for select to authenticated using (true);

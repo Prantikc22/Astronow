@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 
 import { api } from "@/src/api/client";
 import { AppText } from "@/src/components/AppText";
 import { GlassCard } from "@/src/components/GlassCard";
 import { Icon } from "@/src/components/Icon";
 import { NorthChart } from "@/src/components/NorthChart";
+import { MotionPressable } from "@/src/components/MotionPressable";
 import { ErrorState, Loading, Screen } from "@/src/components/Screen";
 import { useTerms } from "@/src/hooks";
 import { makeStyles, radii, useTheme } from "@/src/theme";
@@ -56,7 +57,7 @@ export default function ChartScreen() {
           <View style={styles.list}>
             {chart.planets.map((p: any, i: number) => (
               <View key={p.name}>
-                <Pressable onPress={() => setOpen(open === p.name ? null : p.name)}
+                <MotionPressable onPress={() => setOpen(open === p.name ? null : p.name)}
                   style={[styles.row, i > 0 && styles.rowBorder]} testID={`planet-${p.name}`}>
                   <View style={styles.planetBadge}>
                     <AppText variant="label" style={{ color: colors.gold }}>{p.name.slice(0, 2)}</AppText>
@@ -68,14 +69,14 @@ export default function ChartScreen() {
                     </AppText>
                   </View>
                   <Icon name={open === p.name ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
-                </Pressable>
+                </MotionPressable>
                 {open === p.name ? (
                   <View style={styles.detail}>
                     <AppText variant="caption" muted>Nakshatra: {p.nakshatra} (lord {p.nakshatra_lord})</AppText>
-                    <Pressable onPress={() => router.push("/(tabs)/ask")} style={styles.askLink} testID={`planet-ask-${p.name}`}>
+                    <MotionPressable onPress={() => router.push("/(tabs)/ask")} style={styles.askLink} testID={`planet-ask-${p.name}`}>
                       <Icon name="message-circle" size={14} color={colors.gold} />
                       <AppText variant="caption" style={{ color: colors.gold }}>Ask about {p.name}</AppText>
-                    </Pressable>
+                    </MotionPressable>
                   </View>
                 ) : null}
               </View>
