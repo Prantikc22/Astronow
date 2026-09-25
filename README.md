@@ -134,3 +134,14 @@ npx expo-doctor
 9. Build signed store binaries and test purchase/restore in sandbox accounts.
 
 AstroNow provides astrology and spiritual reflection, not medical, legal or financial advice.
+
+## Engagement and growth features
+
+- **Family profiles** (`/api/family`): stored in `saved_profiles`; each member gets their own daily reading through the same pipeline as the account holder. Free accounts can add 1 profile, Plus up to 10.
+- **Question credits and referrals** (`/api/usage`, `/api/referral`, `/api/referral/redeem`): stored in `saved_items` (`referral_code:*`, `referral_redeemed`, `referral_credit`, `bonus_questions`). A redeemed code gives both people 2 bonus questions, used after the monthly free allowance. No migration is required.
+- **Moon calendar** (`/api/moon-calendar`) and **Muhurat finder** (`/api/muhurat`): deterministic, computed from the Panchang engine in `backend/growth.py`. Muhurat shows the top day free and the rest with Plus.
+- **Notifications**: local, on-device schedules (morning reading, Rahu Kaal heads-up, missed-day streak reminder, moon days). They work in Expo Go; remote push can be added later without changing the UI.
+- **Share cards**: a branded day card captured with `react-native-view-shot` and shared through the system sheet.
+- **Social proof on the paywall** renders only when real numbers exist. Add a row to `app_config` with key `social_proof`, for example:
+  `{"rating": "4.7", "reviews": "1,240", "users": "25,000+", "testimonials": [{"quote": "…", "name": "Ananya", "detail": "Pune"}]}`
+- A home-screen widget needs a native development build (WidgetKit / Android App Widgets) and is not part of the Expo Go build.

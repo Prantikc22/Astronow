@@ -73,6 +73,8 @@ export default function Paywall() {
   });
 
   const [tab, setTab] = useState<"plus" | "reports">("plus");
+  // Only real, admin-entered numbers ever render here (app_config.social_proof).
+  const proof: SocialProofData | null = config?.social_proof && (config.social_proof.rating || config.social_proof.testimonials?.length) ? config.social_proof : null;
   const parse = (value?: string) => Number(String(value || "").replace(/[^0-9.]/g, "")) || 0;
   const monthlyRef = parse(localizedReferencePrice(products.find((p: any) => p.id === "monthly")?.ref_price));
   const annualRef = parse(localizedReferencePrice(products.find((p: any) => p.id === "annual")?.ref_price));
@@ -131,6 +133,8 @@ export default function Paywall() {
                   );
                 })}
               </View>
+
+              {proof ? <SocialProof proof={proof} /> : null}
 
               <Animated.View entering={rise(6)} style={styles.unlocks}>
                 <AppText variant="label" style={{ color: colors.goldSoft, letterSpacing: 1.2 }}>WHAT YOU UNLOCK</AppText>
@@ -213,6 +217,31 @@ export default function Paywall() {
         ) : null}
       </CosmicBackground>
     </View>
+  );
+}
+
+type SocialProofData = { rating?: string; reviews?: string; users?: string; testimonials?: { quote: string; name: string; detail?: string }[] };
+
+function SocialProof({ proof }: { proof: SocialProofData }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const t = proof.testimonials?.[0];
+  return (
+    <Animated.View entering={rise(5)} style={styles.proof}>
+      {proof.rating ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <AppText variant="title" style={{ color: colors.goldSoft }}>{proof.rating}</AppText>
+          <View style={{ flexDirection: "row", gap: 2 }}>{[0, 1, 2, 3, 4].map((i) => <Icon key={i} name="star" size={14} color={colors.goldSoft} weight="fill" />)}</View>
+          <AppText variant="caption" muted style={{ flex: 1 }}>{[proof.reviews && `${proof.reviews} ratings`, proof.users && `${proof.users} users`].filter(Boolean).join(" · ")}</AppText>
+        </View>
+      ) : null}
+      {t ? (
+        <View style={{ marginTop: proof.rating ? 12 : 0 }}>
+          <AppText variant="body" style={{ fontStyle: "italic" }}>“{t.quote}”</AppText>
+          <AppText variant="caption" muted style={{ marginTop: 6 }}>{t.name}{t.detail ? `, ${t.detail}` : ""}</AppText>
+        </View>
+      ) : null}
+    </Animated.View>
   );
 }
 
@@ -307,6 +336,7 @@ const useStyles = makeStyles((colors) => ({
   save: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: "#8FB8F0" },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.borderStrong, alignItems: "center", justifyContent: "center" },
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.gold },
+  proof: { marginTop: 20, padding: 16, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
   unlocks: { marginTop: 20, gap: 14, padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.glassBorder },
   unlockRow: { flexDirection: "row", alignItems: "center", gap: 13 },
   unlockIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },

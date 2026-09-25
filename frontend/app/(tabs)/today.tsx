@@ -36,7 +36,10 @@ import { ErrorState } from "@/src/components/Screen";
 import { Shine } from "@/src/components/Shine";
 import { Skeleton } from "@/src/components/Skeleton";
 import { SparkleBurst } from "@/src/components/SparkleBurst";
+import { ShareSheet } from "@/src/components/ShareCard";
 import { UpsellSheet, useNudge, type UpsellKind } from "@/src/components/UpsellSheet";
+import { enableNotifications, getPrefs, syncDailyNotifications } from "@/src/services/notifications";
+import { todayPath, useActiveProfile } from "@/src/store/active-profile";
 import { WeekStrip } from "@/src/components/WeekStrip";
 import { AREAS, areaMeter, dayRuler, dayScore, meterPercent, scoreTone } from "@/src/content/day-insights";
 import { dailyReading, moonPosition, readingLocale } from "@/src/content/daily-reading";
@@ -64,8 +67,9 @@ export default function Today() {
   const insets = useSafeAreaInsets();
   const { profile, entitlement } = useAuth();
   const language = profile?.language || "en";
+  const { active, members, setActive } = useActiveProfile();
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["today", language], queryFn: () => api.get("/today"), staleTime: 10 * 60 * 1000,
+    queryKey: active ? ["today", language, "member", active.id] : ["today", language], queryFn: () => api.get(todayPath(active)), staleTime: 10 * 60 * 1000,
     refetchInterval: (query) => query.state.data?.reading_status === "generating" ? 5000 : false,
   });
   const reading = dailyReading(data, language);
@@ -80,7 +84,21 @@ export default function Today() {
   const streak = useVisitStreak();
   const now = new Date();
   const locale = readingLocale(language);
-  const name = profile?.first_name || data?.name || "friend";
+  const ownName = profile?.first_name || "friend";
+  const name = active ? active.name : ownName;
+  const { data: usage } = useQuery({ queryKey: ["usage"], queryFn: () => api.get("/usage"), staleTime: 60 * 1000, retry: false });
+  const [shareOpen, setShareOpen] = useState(false);
+  const [notifPrompt, setNotifPrompt] = useState(false);
+  useEffect(() => {
+    getPrefs().then(async (prefs) => {
+      if (prefs.enabled) return;
+      const dismissed = await AsyncStorage.getItem("astronow.notifPromptDismissed").catch(() => null);
+      if (!dismissed) setNotifPrompt(true);
+    });
+  }, []);
+  useEffect(() => {
+    if (data?.panchang && !active) syncDailyNotifications({ rahu: data.panchang.rahu_kalam, streakDays: streak?.days }).catch(() => {});
+  }, [data?.panchang, active, streak?.days]);
   const score = dayScore(data?.energy);
   const ruler = dayRuler(now);
   const dateLabel = now.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
@@ -131,17 +149,17 @@ export default function Today() {
         >
           <Animated.View style={heroParallax}>
             <View style={styles.topbar}>
-              <MotionPressable onPress={() => router.push("/(tabs)/you")} style={styles.avatar} accessibilityLabel="Open profile" haptic="light">
-                <LinearGradient colors={[colors.goldSoft, colors.coral]} style={styles.avatarFill}>
-                  <AppText variant="subtitle" style={{ color: colors.ink }}>{String(name).charAt(0).toUpperCase()}</AppText>
-                </LinearGradient>
-              </MotionPressable>
-              <View style={{ flex: 1 }}>
-                <AppText variant="caption" muted>{localGreeting(now.getHours(), language)}</AppText>
-                <AppText variant="title" numberOfLines={1}>{name}</AppText>
-              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, alignItems: "center" }} style={{ flex: 1 }}>
+                <ProfileChip label={ownName} selected={!active} onPress={() => setActive(null)} testID="profile-self" />
+                {members.map((m) => <ProfileChip key={m.id} label={m.name} selected={active?.id === m.id} onPress={() => setActive(m.id)} testID={`profile-${m.id}`} />)}
+                <MotionPressable onPress={() => router.push("/family/add" as any)} style={styles.addChip} accessibilityLabel="Add a family member" testID="profile-add">
+                  <Icon name="plus" size={18} color={colors.muted} />
+                </MotionPressable>
+              </ScrollView>
               {streak ? <StreakChip days={streak.days} fresh={streak.isNew} /> : null}
             </View>
+            <AppText variant="caption" muted style={{ marginTop: 14 }}>{active ? `${active.relation ? active.relation + " · " : ""}Family profile` : localGreeting(now.getHours(), language)}</AppText>
+            <AppText variant="display" numberOfLines={1} style={{ fontSize: 30, lineHeight: 36 }}>{active ? `${name}'s day` : name}</AppText>
           </Animated.View>
 
           <Animated.View entering={rise(0)} style={{ marginTop: 18 }}>
@@ -157,6 +175,14 @@ export default function Today() {
               </Animated.View>
             ))}
           </ScrollView>
+          {usage && !usage.premium ? (
+            <MotionPressable onPress={() => router.push("/paywall")} style={styles.credits} haptic="light" testID="home-credits">
+              <View style={[styles.creditRing, { borderColor: usage.remaining > 2 ? colors.goldSoft : colors.coral }]}><AppText variant="label" style={{ fontSize: 12 }}>{usage.remaining}</AppText></View>
+              <AppText variant="caption" style={{ flex: 1, color: colors.onSurface }}>{usage.remaining === 1 ? "question" : "questions"} left this month{usage.bonus ? ` · includes ${usage.bonus} bonus` : ""}</AppText>
+              <AppText variant="label" style={{ color: colors.goldSoft }}>Get more</AppText>
+              <Icon name="arrow-right" size={14} color={colors.goldSoft} />
+            </MotionPressable>
+          ) : null}
 
           {isError ? <ErrorState onRetry={refetch} /> : null}
           {isLoading ? <HomeSkeleton /> : null}
@@ -170,10 +196,15 @@ export default function Today() {
                     <View style={styles.heroGlow} />
                     <View style={styles.heroHead}>
                       <AppText variant="label" style={{ color: colors.muted, letterSpacing: 1 }}>YOUR DAILY HOROSCOPE</AppText>
-                      <AppText variant="label" style={{ color: colors.muted }}>{dateLabel}</AppText>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                        <AppText variant="label" style={{ color: colors.muted }}>{dateLabel}</AppText>
+                        <MotionPressable onPress={() => setShareOpen(true)} hitSlop={10} style={styles.shareBtn} accessibilityLabel="Share your day" testID="home-share">
+                          <Icon name="send" size={14} color={colors.onSurface} />
+                        </MotionPressable>
+                      </View>
                     </View>
                     <View style={{ marginTop: 18 }}>
-                      <WeekStrip language={language} scores={{ 0: score }} onSelect={(offset) => router.push({ pathname: "/daily", params: { offset: String(offset) } } as any)} />
+                      <WeekStrip key={active?.id || "self"} language={language} scores={{ 0: score }} onSelect={(offset) => router.push({ pathname: "/daily", params: { offset: String(offset) } } as any)} />
                     </View>
                     <AppText variant="title" center style={{ marginTop: 20, fontSize: 25, lineHeight: 31 }}>{reading.title}</AppText>
                     {data.reading_status === "generating" ? <Writing /> : null}
@@ -257,6 +288,36 @@ export default function Today() {
                 </MotionPressable>
               </Animated.View>
 
+              {/* Planning tools */}
+              <Animated.View entering={rise(5)} style={{ flexDirection: "row", gap: 10 }}>
+                <MotionPressable onPress={() => router.push("/muhurat" as any)} style={styles.tool} testID="home-muhurat">
+                  <LinearGradient colors={["#F7DDA6", "#E3A866"]} style={styles.toolIcon}><Icon name="calendar" size={18} color={colors.ink} weight="duotone" /></LinearGradient>
+                  <AppText variant="subtitle" style={{ marginTop: 12, fontSize: 16 }}>Muhurat finder</AppText>
+                  <AppText variant="caption" muted>Best days to travel, sign, buy or begin</AppText>
+                </MotionPressable>
+                <MotionPressable onPress={() => router.push("/moon" as any)} style={styles.tool} testID="home-moon">
+                  <LinearGradient colors={["#E4E1F5", "#8E83E0"]} style={styles.toolIcon}><Icon name="moon" size={18} color={colors.ink} weight="fill" /></LinearGradient>
+                  <AppText variant="subtitle" style={{ marginTop: 12, fontSize: 16 }}>Moon calendar</AppText>
+                  <AppText variant="caption" muted>Purnima, Ekadashi and festival days</AppText>
+                </MotionPressable>
+              </Animated.View>
+
+              {notifPrompt ? (
+                <Animated.View entering={rise(5)} style={styles.notif}>
+                  <Icon name="bell" size={20} color={colors.goldSoft} weight="duotone" />
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="subtitle" style={{ fontSize: 15 }}>Your reading every morning</AppText>
+                    <AppText variant="caption" muted>At 7am, plus a heads-up before Rahu Kaal</AppText>
+                  </View>
+                  <MotionPressable onPress={async () => { setNotifPrompt(false); await AsyncStorage.setItem("astronow.notifPromptDismissed", "1").catch(() => {}); if (await enableNotifications()) haptics.success(); }} style={styles.notifBtn} testID="home-notif-on">
+                    <AppText variant="label" style={{ color: colors.ink }}>Turn on</AppText>
+                  </MotionPressable>
+                  <MotionPressable onPress={() => { setNotifPrompt(false); AsyncStorage.setItem("astronow.notifPromptDismissed", "1").catch(() => {}); }} hitSlop={10} accessibilityLabel="Dismiss">
+                    <Icon name="x" size={16} color={colors.muted} />
+                  </MotionPressable>
+                </Animated.View>
+              ) : null}
+
               {/* Offers */}
               <Animated.View entering={rise(5)}>
                 <SectionTitle title="Deep-dive reports" action="All reports" onAction={() => router.push("/(tabs)/reports")} />
@@ -280,6 +341,20 @@ export default function Today() {
                     ]}
                   </Carousel>
                 </View>
+              </Animated.View>
+
+              {/* Invite */}
+              <Animated.View entering={rise(6)}>
+                <MotionPressable onPress={() => router.push("/invite" as any)} pressScale={0.985} testID="home-invite">
+                  <LinearGradient colors={["#3A1638", "#241536"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.invite}>
+                    <View style={styles.inviteIcon}><Icon name="gift" size={22} color={colors.goldSoft} weight="duotone" /></View>
+                    <View style={{ flex: 1 }}>
+                      <AppText variant="subtitle">Earn 2 free questions</AppText>
+                      <AppText variant="caption" muted>For every friend who joins with your code. They get 2 too.</AppText>
+                    </View>
+                    <Icon name="chevron-right" size={18} color={colors.muted} />
+                  </LinearGradient>
+                </MotionPressable>
               </Animated.View>
 
               {/* Tara's note */}
@@ -318,7 +393,7 @@ export default function Today() {
                 </Animated.View>
               ) : null}
 
-              <EditorialFooter kicker="PRIVATE BY DESIGN" title={"Your chart is personal.\nIt stays yours."} note="Scoped to your account and deletable any time from Profile. Use the chart as a mirror; your judgment is the compass." />
+              <EditorialFooter kicker="PRIVATE BY DESIGN" title={"Your chart is personal.\nIt stays yours."} note="Private to your account. Delete anytime from Profile." />
             </View>
           ) : null}
         </Animated.ScrollView>
@@ -331,7 +406,24 @@ export default function Today() {
         </Animated.View>
       </CosmicBackground>
       <UpsellSheet visible={sheet} kind={sheetKind} onClose={() => setSheet(false)} />
+      <ShareSheet visible={shareOpen} onClose={() => setShareOpen(false)} data={{
+        name, date: now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" }), score, title: reading.title,
+        tone: score != null ? scoreTone(score) : "", ruler, moon: moonPosition(data?.moon_today?.sign, data?.moon_today?.nakshatra, language),
+      }} />
     </View>
+  );
+}
+
+function ProfileChip({ label, selected, onPress, testID }: { label: string; selected: boolean; onPress: () => void; testID?: string }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  return (
+    <MotionPressable onPress={onPress} style={[styles.profileChip, selected && styles.profileChipOn]} testID={testID} accessibilityState={{ selected }}>
+      <LinearGradient colors={selected ? [colors.goldSoft, colors.coral] : ["#2E2B4F", "#2E2B4F"]} style={styles.profileInitial}>
+        <AppText variant="label" style={{ color: selected ? colors.ink : colors.onSurface, fontSize: 12 }}>{label.charAt(0).toUpperCase()}</AppText>
+      </LinearGradient>
+      <AppText variant="label" numberOfLines={1} style={{ color: selected ? colors.onSurface : colors.muted, maxWidth: 90 }}>{label}</AppText>
+    </MotionPressable>
   );
 }
 
@@ -486,7 +578,20 @@ function localGreeting(hour: number, language: string): string {
 }
 
 const useStyles = makeStyles((colors) => ({
-  topbar: { flexDirection: "row", alignItems: "center", gap: 12 },
+  topbar: { flexDirection: "row", alignItems: "center", gap: 10 },
+  profileChip: { flexDirection: "row", alignItems: "center", gap: 7, height: 38, paddingLeft: 4, paddingRight: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(28,27,52,0.9)" },
+  profileChipOn: { borderColor: "rgba(242,200,121,0.5)", backgroundColor: "rgba(58,29,74,0.9)" },
+  profileInitial: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  addChip: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, borderStyle: "dashed", borderColor: colors.borderStrong },
+  credits: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: "rgba(28,27,52,0.9)", borderWidth: 1, borderColor: colors.border },
+  creditRing: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  shareBtn: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(235,226,250,0.08)" },
+  tool: { flex: 1, padding: 15, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
+  toolIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  notif: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: radii.lg, backgroundColor: "rgba(242,200,121,0.07)", borderWidth: 1, borderColor: "rgba(242,200,121,0.25)" },
+  notifBtn: { paddingHorizontal: 12, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.goldSoft },
+  invite: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radii.lg, borderWidth: 1, borderColor: "rgba(240,160,189,0.25)" },
+  inviteIcon: { width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(242,200,121,0.1)" },
   avatar: { width: 46, height: 46, borderRadius: 23, overflow: "hidden" },
   avatarFill: { flex: 1, alignItems: "center", justifyContent: "center" },
   streak: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, height: 34, borderRadius: 10, backgroundColor: "rgba(242,155,56,0.12)", borderWidth: 1, borderColor: "rgba(242,155,56,0.3)" },

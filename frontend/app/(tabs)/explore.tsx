@@ -130,7 +130,7 @@ export default function MatchHub() {
         </View>
       </View>
 
-      <EditorialFooter kicker="BETTER THAN A SCORE" title={"Compatibility grows\nthrough clarity."} note="Use the stars to start a conversation, not to end one." />
+      <EditorialFooter kicker="BETTER THAN A SCORE" title={"Compatibility grows\nthrough clarity."} note="Use the stars to start a conversation." />
     </Screen>
   );
 }

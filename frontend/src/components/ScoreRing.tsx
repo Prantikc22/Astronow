@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useId } from "react";
 import { View } from "react-native";
 import Animated, { Easing, useAnimatedProps, useReducedMotion, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
@@ -24,7 +24,8 @@ export function ScoreRing({
   }, [value, delay, reduced, progress]);
   const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: c * (1 - progress.value) }));
   const [from, to] = gradient || [colors.goldSoft, colors.coral];
-  const id = `ring-${from.replace(/[^a-z0-9]/gi, "")}-${to.replace(/[^a-z0-9]/gi, "")}`;
+  // Unique per instance: on web, duplicate SVG ids resolve to the first (possibly hidden) match.
+  const id = `ring-${useId().replace(/[^a-z0-9]/gi, "")}`;
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
       <Svg width={size} height={size} style={{ position: "absolute", transform: [{ rotate: "-90deg" }] }}>

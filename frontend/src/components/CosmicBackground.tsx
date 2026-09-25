@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect } from "react";
+import React, { useEffect, useId } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
@@ -27,7 +27,7 @@ function Aurora({ style, color, drift, period, size }: { style: object; color: s
     opacity: 0.7 + t.value * 0.3,
     transform: [{ translateX: t.value * drift }, { translateY: t.value * drift * -0.5 }, { scale: 1 + t.value * 0.1 }],
   }));
-  const id = `aurora-${color.replace(/[^0-9a-z]/gi, "")}`;
+  const id = `aurora-${useId().replace(/[^0-9a-z]/gi, "")}`;
   // A radial gradient that fades to nothing reads as light, not as a shape.
   return (
     <Animated.View style={[styles.blob, style, { width: size, height: size }, motion]}>

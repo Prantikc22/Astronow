@@ -19,6 +19,8 @@ import { makeStyles, radii, useTheme } from "@/src/theme";
 const TOOLS: { label: string; sub: string; icon: FeatherName; route: string; tint: [string, string] }[] = [
   { label: "Birth chart", sub: "Kundli", icon: "target", route: "/chart", tint: ["#F7DDA6", "#E3A866"] },
   { label: "Daily ritual", sub: "Mantra & breath", icon: "sparkle", route: "/ritual", tint: ["#F7DDA6", "#B08A3E"] },
+  { label: "Muhurat", sub: "Best days to begin", icon: "calendar", route: "/muhurat", tint: ["#F7DDA6", "#E3A866"] },
+  { label: "Moon calendar", sub: "Purnima · Ekadashi", icon: "moon", route: "/moon", tint: ["#E4E1F5", "#8E83E0"] },
   { label: "Vastu home", sub: "Upload or draw", icon: "home", route: "/vastu", tint: ["#B9E3E0", "#6FB3B4"] },
   { label: "Tarot", sub: "Draw a spread", icon: "layers", route: "/tarot", tint: ["#E4C9FF", "#A77BDB"] },
   { label: "Numerology", sub: "Your numbers", icon: "hash", route: "/numerology", tint: ["#F6B6CB", "#D0628F"] },
@@ -140,7 +142,7 @@ export default function Reports() {
       })}
     </View>
 
-    <EditorialFooter kicker="READ DEEPER" title={"Not generic fortunes.\nA map made from your chart."} note="Every interpretation is computed from your birth details and leaves the decision with you." />
+    <EditorialFooter kicker="READ DEEPER" title={"Not generic fortunes.\nA map made from your chart."} note="Computed from your exact birth details." />
   </Screen>;
 }
 

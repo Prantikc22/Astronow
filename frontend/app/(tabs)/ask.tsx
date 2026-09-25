@@ -46,6 +46,7 @@ export default function Ask() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const { data: usage } = useQuery({ queryKey: ["usage"], queryFn: () => api.get("/usage"), staleTime: 30 * 1000, retry: false });
   const { data: history } = useQuery({ queryKey: ["conversations"], queryFn: () => api.get("/conversations"), enabled: showHistory });
   const savedInterests = React.useMemo(
     () => Array.isArray(profile?.interests) ? profile.interests.map((item: unknown) => String(item).toLowerCase()) : [],
@@ -105,6 +106,7 @@ export default function Ask() {
       });
       haptics.soft();
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["usage"] });
     } catch (error: any) {
       if (error instanceof ApiError && (error.status === 402 || error.payload?.paywall)) {
         setMessages((current) => current.slice(0, -1));
@@ -157,7 +159,12 @@ export default function Ask() {
                 <AppText variant="caption" style={{ color: busy ? colors.goldSoft : colors.muted }}>{busy ? "Tara is reading your chart…" : "Tara · 24x7 Astrologer · online"}</AppText>
               </View>
             </View>
-            <View style={{ flexDirection: "row", gap: 9 }}>
+            <View style={{ flexDirection: "row", gap: 9, alignItems: "center" }}>
+              {usage && !usage.premium ? (
+                <MotionPressable onPress={() => router.push("/paywall")} style={styles.leftPill} testID="ask-credits" accessibilityLabel={`${usage.remaining} questions left`}>
+                  <AppText variant="label" style={{ color: usage.remaining > 2 ? colors.goldSoft : colors.coral, fontSize: 12 }}>{usage.remaining} left</AppText>
+                </MotionPressable>
+              ) : null}
               <MotionPressable onPress={() => setShowHistory(!showHistory)} style={styles.headerButton} accessibilityLabel="Conversation history">
                 <Icon name="clock" size={18} color={colors.onSurface} />
               </MotionPressable>
@@ -338,6 +345,7 @@ const useStyles = makeStyles((colors) => ({
   aiBubble: { backgroundColor: "rgba(33,31,59,0.95)", borderBottomLeftRadius: 5, borderWidth: 1, borderColor: colors.border },
   headAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: colors.coral },
   onlineDot: { position: "absolute", right: 0, bottom: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: "#5BD08A", borderWidth: 2, borderColor: "#0B0B1A" },
+  leftPill: { paddingHorizontal: 10, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(242,200,121,0.1)", borderWidth: 1, borderColor: "rgba(242,200,121,0.3)" },
   plusCard: { marginTop: 12, marginLeft: 38, borderRadius: 14, overflow: "hidden" },
   plusFill: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: "rgba(242,200,121,0.3)" },
   followUps: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6, marginLeft: 38 },

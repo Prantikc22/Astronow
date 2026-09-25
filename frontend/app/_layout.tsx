@@ -1,7 +1,7 @@
 import { useFonts } from "expo-font";
 import { Fraunces_500Medium, Fraunces_600SemiBold } from "@expo-google-fonts/fraunces";
 import { NunitoSans_400Regular, NunitoSans_600SemiBold, NunitoSans_700Bold } from "@expo-google-fonts/nunito-sans";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -14,6 +14,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AnimatedSplash } from "@/src/components/AnimatedSplash";
 import { ErrorBoundary } from "@/src/components/error-boundary";
 import { PurchasesBridge } from "@/src/components/PurchasesBridge";
+import { onNotificationOpen } from "@/src/services/notifications";
+import { ActiveProfileProvider } from "@/src/store/active-profile";
 import { AuthProvider, useAuth } from "@/src/store/auth";
 import { I18nProvider } from "@/src/i18n";
 import { queryClient } from "@/src/query-client";
@@ -42,7 +44,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <KeyboardProvider>
             <QueryClientProvider client={queryClient}>
-              <AuthProvider><LocalizedApp /></AuthProvider>
+              <AuthProvider><ActiveProfileProvider><LocalizedApp /></ActiveProfileProvider></AuthProvider>
             </QueryClientProvider>
           </KeyboardProvider>
         </SafeAreaProvider>
@@ -54,6 +56,8 @@ export default function RootLayout() {
 function LocalizedApp() {
   const { profile, ready } = useAuth();
   const [splash, setSplash] = useState(true);
+  const router = useRouter();
+  useEffect(() => onNotificationOpen((route) => router.push(route as any)), [router]);
   return <I18nProvider language={profile?.language || "en"}>
     <PurchasesBridge />
     <StatusBar style="light" />

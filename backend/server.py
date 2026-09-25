@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
 
 import ai_gateway
+import growth
 import config
 import context_engine
 import daily_reading
@@ -424,6 +425,13 @@ async def today(user: dict = User, day: Optional[str] = None):
     if not data:
         raise HTTPException(404, "Complete onboarding first.")
     profile = await get_profile(user["id"])
+    return await _today_payload(user["id"], data, profile, (profile or {}).get("first_name"), reading_day, "self")
+
+
+async def _today_payload(user_id: str, data: dict, profile: Optional[dict], name: Optional[str],
+                         reading_day: date, scope: str) -> dict:
+    """Daily reading for any chart the user owns (their own or a family member's).
+    Location, language and terminology always come from the account holder."""
     chart, dashas = data["chart"], data["dasha"]
     as_of = datetime.now(timezone.utc) if reading_day == date.today() else datetime.combine(reading_day, dtime(hour=12), timezone.utc)
     tr = transit_mod.compute_transits(chart, as_of=as_of)
@@ -431,7 +439,6 @@ async def today(user: dict = User, day: Optional[str] = None):
     if profile and profile.get("lat") is not None:
         pan = panchang_mod.compute_panchang(
             reading_day, profile["lat"], profile["lon"], profile.get("tz_offset") or 0.0)
-    name = profile.get("first_name") if profile else None
 
     language = (profile or {}).get("language") or "en"
     ctx = {"transits": tr, "dasha": dashas, "panchang": pan}
@@ -440,15 +447,15 @@ async def today(user: dict = User, day: Optional[str] = None):
         + "\n\nCONTEXT:\n" + json.dumps(ctx, default=str)
     )
     chart_version = str(data.get("computed_at") or "v1").replace(":", "-")
-    cache_key = f"daily_reading:v3:{reading_day.isoformat()}:{language}:{chart_version}"
-    cached = await db.one("saved_items", "payload", filters={"user_id": user["id"], "kind": cache_key})
+    cache_key = f"daily_reading:v3:{scope}:{reading_day.isoformat()}:{language}:{chart_version}" if scope != "self" else f"daily_reading:v3:{reading_day.isoformat()}:{language}:{chart_version}"
+    cached = await db.one("saved_items", "payload", filters={"user_id": user_id, "kind": cache_key})
     reading = (cached or {}).get("payload")
     if not daily_reading.valid_reading(reading, language, require_categories=True):
         reading = daily_reading.fallback_reading(language)
-        task_key = f"{user['id']}:{cache_key}"
+        task_key = f"{user_id}:{cache_key}"
         if task_key not in _daily_generation_tasks:
             _daily_generation_tasks[task_key] = asyncio.create_task(
-                _generate_and_cache_daily(cache_key, user["id"], language, request)
+                _generate_and_cache_daily(cache_key, user_id, language, request)
             )
         reading_status = "generating"
     else:
@@ -463,7 +470,7 @@ async def today(user: dict = User, day: Optional[str] = None):
     greeting = "Good morning" if 5 <= hour < 12 else "Good afternoon" if 12 <= hour < 17 else "Good evening"
     md = dashas.get("current_mahadasha") or {}
     daily_tarot = tarot_mod.draw("one", seed=int(reading_day.strftime("%Y%m%d")))
-    await _track(user["id"], "today_viewed", {})
+    await _track(user_id, "today_viewed", {})
     return {
         "greeting": greeting,
         "name": name,
@@ -480,6 +487,8 @@ async def today(user: dict = User, day: Optional[str] = None):
         "daily_tarot": daily_tarot,
         "terminology_mode": profile.get("terminology_mode", "both") if profile else "both",
     }
+
+
 
 
 @api.get("/dasha")
@@ -773,7 +782,7 @@ async def _check_fair_use(user_id: str) -> None:
         month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         used = await db.count("messages", filters={"user_id": user_id, "role": "user",
             "created_at": ("gte", month_start.isoformat())})
-        if used >= cfg.get("free_chat_allowance", config.FREE_CHAT_ALLOWANCE):
+        if used >= cfg.get("free_chat_allowance", config.FREE_CHAT_ALLOWANCE) and not await _consume_bonus(user_id):
             raise HTTPException(402, json.dumps({"paywall": True,
                 "reason": "You've used this month's complimentary messages. Join for more guidance, or come back next month."}))
     else:
@@ -986,6 +995,228 @@ async def admin_stats(x_admin_token: Optional[str] = Header(None)):
         "chats": chats, "vastu_analyses": vastu,
         "cost_per_paid_user": round(float(cost_month) / paid, 4) if paid else 0,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Family profiles
+# --------------------------------------------------------------------------- #
+FAMILY_LIMIT = {"free": 1, "premium": 10}
+
+
+class FamilyIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    relation: Optional[str] = None
+    dob: str
+    birth_time: Optional[str] = None
+    birth_time_known: bool = True
+    birthplace: Optional[str] = None
+    lat: float
+    lon: float
+    tz_name: Optional[str] = None
+
+
+def _member_chart(row: dict) -> dict:
+    raw = row.get("chart") or {}
+    return raw if isinstance(raw, dict) else json.loads(raw)
+
+
+def _member_summary(row: dict) -> dict:
+    full = _member_chart(row)
+    chart = full.get("chart") or {}
+    return {"id": row["id"], "name": row["name"], "relation": row.get("relation"),
+            "dob": row.get("dob"), "birthplace": row.get("birthplace"),
+            "moon_sign": chart.get("moon_sign"), "sun_sign": chart.get("sun_sign"),
+            "lagna": (chart.get("lagna") or {}).get("sign")}
+
+
+async def _family_rows(user_id: str) -> list[dict]:
+    return await db.select("saved_profiles", "*", filters={"user_id": user_id, "deleted_at": None}, order="created_at.asc")
+
+
+@api.get("/family")
+async def family_list(user: dict = User):
+    _require_db()
+    ent = await get_entitlement(user["id"])
+    rows = await _family_rows(user["id"])
+    return {"members": [_member_summary(r) for r in rows],
+            "limit": FAMILY_LIMIT["premium" if ent["premium"] else "free"], "premium": ent["premium"]}
+
+
+@api.post("/family")
+async def family_add(body: FamilyIn, user: dict = User):
+    _require_db()
+    ent = await get_entitlement(user["id"])
+    rows = await _family_rows(user["id"])
+    limit = FAMILY_LIMIT["premium" if ent["premium"] else "free"]
+    if len(rows) >= limit:
+        raise HTTPException(402, json.dumps({"paywall": True, "reason": "Add more family members with AstroNow Plus."}))
+    dob = _parse_date(body.dob)
+    if body.birth_time_known and not body.birth_time:
+        raise HTTPException(422, "Birth time is required when marked as known.")
+    t = _parse_time(body.birth_time) if body.birth_time_known else None
+    tz_name = body.tz_name or geocode.tz_name_for(body.lat, body.lon) or "UTC"
+    tz_offset = geocode.tz_offset_hours(tz_name, dob, t)
+    full = compute_full(dob, t, body.lat, body.lon, tz_offset, body.birth_time_known, body.name)
+    row = await db.insert("saved_profiles", {
+        "user_id": user["id"], "name": body.name.strip(), "relation": body.relation, "dob": dob,
+        "birth_time": t, "birth_time_known": body.birth_time_known, "birthplace": body.birthplace,
+        "lat": body.lat, "lon": body.lon, "tz_offset": tz_offset, "chart": full,
+    }, returning=True)
+    await _track(user["id"], "family_member_added", {"relation": body.relation})
+    return _member_summary(row)
+
+
+@api.delete("/family/{member_id}")
+async def family_delete(member_id: str, user: dict = User):
+    _require_db()
+    await db.update("saved_profiles", {"deleted_at": datetime.now(timezone.utc)}, filters={"id": member_id, "user_id": user["id"]})
+    return {"deleted": True}
+
+
+@api.get("/family/{member_id}/today")
+async def family_today(member_id: str, user: dict = User, day: Optional[str] = None):
+    _require_db()
+    row = await db.one("saved_profiles", "*", filters={"id": member_id, "user_id": user["id"], "deleted_at": None})
+    if not row:
+        raise HTTPException(404, "Family member not found.")
+    reading_day = date.fromisoformat(day) if day else date.today()
+    if reading_day < date.today() or reading_day > date.today() + timedelta(days=1):
+        raise HTTPException(400, "Daily readings are available for today and tomorrow only.")
+    full = _member_chart(row)
+    data = {"chart": full["chart"], "dasha": full["dasha"], "computed_at": row.get("created_at")}
+    profile = await get_profile(user["id"])
+    return await _today_payload(user["id"], data, profile, row["name"], reading_day, f"member-{member_id}")
+
+
+# --------------------------------------------------------------------------- #
+# Question credits and referrals
+# --------------------------------------------------------------------------- #
+async def _bonus_rows(user_id: str) -> list[dict]:
+    rows = await db.select("saved_items", "id,payload", filters={"user_id": user_id, "kind": "bonus_questions", "deleted_at": None})
+    for r in rows:
+        if isinstance(r.get("payload"), str):
+            r["payload"] = json.loads(r["payload"])
+    return rows
+
+
+async def _usage(user_id: str) -> dict:
+    ent = await get_entitlement(user_id)
+    cfg = await get_config()
+    bonus = sum(int((r["payload"] or {}).get("remaining", 0)) for r in await _bonus_rows(user_id))
+    if ent["premium"]:
+        since = datetime.now(timezone.utc) - timedelta(days=1)
+        used = await db.count("messages", filters={"user_id": user_id, "role": "user", "created_at": ("gt", since.isoformat())})
+        allowance = int(cfg.get("fairuse_daily_messages", config.FAIRUSE_DAILY_MESSAGES))
+        return {"premium": True, "period": "day", "used": used, "allowance": allowance, "bonus": bonus,
+                "remaining": max(0, allowance - used)}
+    month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    used = await db.count("messages", filters={"user_id": user_id, "role": "user", "created_at": ("gte", month_start.isoformat())})
+    allowance = int(cfg.get("free_chat_allowance", config.FREE_CHAT_ALLOWANCE))
+    return {"premium": False, "period": "month", "used": used, "allowance": allowance, "bonus": bonus,
+            "remaining": max(0, allowance - used) + bonus}
+
+
+async def _consume_bonus(user_id: str) -> bool:
+    for r in await _bonus_rows(user_id):
+        payload = r["payload"] or {}
+        remaining = int(payload.get("remaining", 0))
+        if remaining > 0:
+            await db.update("saved_items", {"payload": {**payload, "remaining": remaining - 1}}, filters={"id": r["id"]})
+            return True
+    return False
+
+
+@api.get("/usage")
+async def usage(user: dict = User):
+    _require_db()
+    return await _usage(user["id"])
+
+
+class RedeemIn(BaseModel):
+    code: str = Field(min_length=4, max_length=16)
+
+
+REFERRAL_BONUS = 2
+
+
+async def _ensure_referral_code(user_id: str) -> str:
+    code = growth.referral_code(user_id)
+    kind = f"referral_code:{code}"
+    if not await db.one("saved_items", "id", filters={"user_id": user_id, "kind": kind}):
+        await db.insert("saved_items", {"user_id": user_id, "kind": kind, "payload": {"code": code}})
+    return code
+
+
+@api.get("/referral")
+async def referral(user: dict = User):
+    _require_db()
+    code = await _ensure_referral_code(user["id"])
+    invited = await db.count("saved_items", filters={"user_id": user["id"], "kind": "referral_credit"})
+    redeemed = await db.one("saved_items", "id", filters={"user_id": user["id"], "kind": "referral_redeemed"})
+    return {"code": code, "invited": invited, "earned": invited * REFERRAL_BONUS,
+            "bonus_per_friend": REFERRAL_BONUS, "can_redeem": redeemed is None}
+
+
+@api.post("/referral/redeem")
+async def referral_redeem(body: RedeemIn, user: dict = User):
+    _require_db()
+    code = body.code.strip().upper().replace(" ", "")
+    owner = await db.one("saved_items", "user_id", filters={"kind": f"referral_code:{code}"})
+    if not owner:
+        raise HTTPException(404, "That invite code was not found. Check it and try again.")
+    if owner["user_id"] == user["id"]:
+        raise HTTPException(400, "You can't use your own invite code.")
+    if await db.one("saved_items", "id", filters={"user_id": user["id"], "kind": "referral_redeemed"}):
+        raise HTTPException(409, "You have already used an invite code.")
+    await db.insert("saved_items", {"user_id": user["id"], "kind": "referral_redeemed", "payload": {"code": code, "referrer": owner["user_id"]}})
+    await db.insert("saved_items", {"user_id": user["id"], "kind": "bonus_questions", "payload": {"count": REFERRAL_BONUS, "remaining": REFERRAL_BONUS, "reason": "welcome"}})
+    await db.insert("saved_items", {"user_id": owner["user_id"], "kind": "bonus_questions", "payload": {"count": REFERRAL_BONUS, "remaining": REFERRAL_BONUS, "reason": "referral"}})
+    await db.insert("saved_items", {"user_id": owner["user_id"], "kind": "referral_credit", "payload": {"friend": user["id"]}})
+    await _track(user["id"], "referral_redeemed", {})
+    return {"redeemed": True, "bonus": REFERRAL_BONUS, "usage": await _usage(user["id"])}
+
+
+# --------------------------------------------------------------------------- #
+# Moon calendar and muhurat finder
+# --------------------------------------------------------------------------- #
+async def _location(user_id: str) -> tuple[Optional[float], Optional[float], float]:
+    profile = await get_profile(user_id)
+    return ((profile or {}).get("lat"), (profile or {}).get("lon"), float((profile or {}).get("tz_offset") or 0.0))
+
+
+@api.get("/moon-calendar")
+async def moon_calendar(user: dict = User, year: Optional[int] = None, month: Optional[int] = None):
+    _require_db()
+    today = date.today()
+    y, m = year or today.year, month or today.month
+    if not (1 <= m <= 12) or not (today.year - 1 <= y <= today.year + 2):
+        raise HTTPException(422, "Choose a month within the next two years.")
+    lat, lon, tz = await _location(user["id"])
+    return {"year": y, "month": m, "days": growth.moon_calendar(y, m, lat, lon, tz)}
+
+
+@api.get("/muhurat/activities")
+async def muhurat_activities():
+    return {"activities": [{"id": k, "label": v["label"]} for k, v in growth.ACTIVITIES.items()]}
+
+
+@api.get("/muhurat")
+async def muhurat(activity: str, user: dict = User, days: int = 21):
+    _require_db()
+    if activity not in growth.ACTIVITIES:
+        raise HTTPException(422, "Choose a supported activity.")
+    lat, lon, tz = await _location(user["id"])
+    ranked = growth.find_muhurat(activity, lat, lon, tz, date.today(), days)
+    ent = await get_entitlement(user["id"])
+    free_visible = 1
+    results = []
+    for i, r in enumerate(ranked[:10]):
+        if ent["premium"] or i < free_visible:
+            results.append({**r, "locked": False})
+        else:
+            results.append({"date": r["date"], "weekday": r["weekday"], "score": r["score"], "locked": True})
+    await _track(user["id"], "muhurat_searched", {"activity": activity})
+    return {"activity": activity, "label": growth.ACTIVITIES[activity]["label"], "premium": ent["premium"], "results": results}
 
 
 @api.get("/")

@@ -16,6 +16,7 @@ import { READING_LANGUAGES, readingLanguageName } from "@/src/content/languages"
 import { Screen } from "@/src/components/Screen";
 import { Shine } from "@/src/components/Shine";
 import { pop, rise } from "@/src/motion";
+import { useActiveProfile } from "@/src/store/active-profile";
 import { useVisitStreak } from "@/src/store/streak";
 import { useAuth } from "@/src/store/auth";
 import { hasActiveEntitlement, restorePurchases as restoreStorePurchases } from "@/src/services/purchases";
@@ -53,6 +54,15 @@ export default function You() {
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
   const { data: chart } = useQuery({ queryKey: ["chart"], queryFn: () => api.get("/chart"), retry: false, staleTime: 60 * 60 * 1000 });
   const streak = useVisitStreak();
+  const { members, limit, setActive, active, refetch: refetchFamily } = useActiveProfile();
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+  const removeMember = async (id: string) => {
+    if (pendingRemove !== id) { setPendingRemove(id); return; }
+    setPendingRemove(null);
+    await api.del(`/family/${id}`).catch(() => {});
+    if (active?.id === id) setActive(null);
+    refetchFamily();
+  };
   const { data: birthProfile } = useQuery({ queryKey: ["birth-profile", user?.id], queryFn: () => api.get("/birth-profile"), retry: false });
 
   const savePreference = async (value: string) => {
@@ -108,6 +118,8 @@ export default function You() {
     { icon: "lock", label: "Birth details", value: birthProfile?.changes_remaining > 0 ? "1 correction left" : "Locked", onPress: birthProfile?.changes_remaining > 0 ? () => router.push("/onboarding?mode=correction" as any) : undefined },
     { icon: "book-open", label: "Astrology terminology", value: TERM_LABELS[profile?.terminology_mode || "both"], onPress: () => setPicker("terms") },
     { icon: "globe", label: "Reading language", value: readingLanguageName(profile?.language), onPress: () => setPicker("language") },
+    { icon: "bell", label: "Notifications", onPress: () => router.push("/notifications" as any) },
+    { icon: "gift", label: "Invite friends", value: "Earn questions", onPress: () => router.push("/invite" as any) },
     { icon: "refresh-cw", label: "Restore purchases", onPress: restore },
   ];
 
@@ -166,6 +178,30 @@ export default function You() {
             {!entitlement.premium ? <Shine every={3400} opacity={0.18} /> : null}
           </LinearGradient>
         </MotionPressable>
+      </Animated.View>
+
+      <Animated.View entering={rise(4)} style={styles.family}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={{ flex: 1 }}>
+            <AppText variant="subtitle">Family & friends</AppText>
+            <AppText variant="caption" muted>{members.length ? `${members.length} of ${limit} profiles` : "See their day and check your match"}</AppText>
+          </View>
+          <MotionPressable onPress={() => router.push("/family/add" as any)} style={styles.addBtn} testID="you-family-add">
+            <Icon name="plus" size={15} color={colors.ink} weight="bold" /><AppText variant="label" style={{ color: colors.ink }}>Add</AppText>
+          </MotionPressable>
+        </View>
+        {members.map((m) => (
+          <View key={m.id} style={styles.member}>
+            <View style={styles.memberInitial}><AppText variant="label" style={{ color: colors.goldSoft }}>{m.name.charAt(0).toUpperCase()}</AppText></View>
+            <MotionPressable onPress={() => { setActive(m.id); router.push("/(tabs)/today"); }} style={{ flex: 1 }}>
+              <AppText variant="body">{m.name}{m.relation ? <AppText variant="caption" muted>  ·  {m.relation}</AppText> : null}</AppText>
+              <AppText variant="caption" muted>{[m.moon_sign && `Moon ${m.moon_sign}`, m.lagna && `Rising ${m.lagna}`].filter(Boolean).join(" · ") || m.birthplace}</AppText>
+            </MotionPressable>
+            <MotionPressable onPress={() => removeMember(m.id)} hitSlop={8} haptic="warning" accessibilityLabel={`Remove ${m.name}`} testID={`you-family-remove-${m.id}`}>
+              <AppText variant="caption" style={{ color: pendingRemove === m.id ? colors.coral : colors.muted }}>{pendingRemove === m.id ? "Tap to confirm" : "Remove"}</AppText>
+            </MotionPressable>
+          </View>
+        ))}
       </Animated.View>
 
       <View style={styles.rows}>
@@ -243,6 +279,10 @@ export default function You() {
 }
 
 const useStyles = makeStyles((colors) => ({
+  family: { marginTop: 12, padding: 16, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
+  addBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, height: 34, borderRadius: 10, backgroundColor: colors.goldSoft },
+  member: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.divider },
+  memberInitial: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: "#2E2B4F" },
   hero: { marginTop: 18, padding: 18, borderRadius: radii.xl, borderWidth: 1, borderColor: "rgba(217,121,162,0.28)" },
   avatarRing: { width: 66, height: 66, borderRadius: 33, padding: 2.5 },
   avatar: { flex: 1, borderRadius: 31, alignItems: "center", justifyContent: "center", backgroundColor: "#1C1638" },

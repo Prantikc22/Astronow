@@ -39,7 +39,14 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-status-bar",
-      "@react-native-vector-icons/feather"
+      "@react-native-vector-icons/feather",
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#D979A2"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

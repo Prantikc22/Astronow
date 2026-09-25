@@ -48,6 +48,8 @@ export const previewProfile = {
 const previewRuntime = globalThis as typeof globalThis & {
   __astronowPreviewSession?: boolean;
   __astronowPreviewProfile?: typeof previewProfile;
+  __astronowFamily?: any[];
+  __astronowBonus?: number;
 };
 let previewCurrentProfile = previewRuntime.__astronowPreviewProfile || { ...previewProfile };
 
@@ -150,8 +152,78 @@ export async function previewRequest(method: string, path: string, body?: any): 
     previewRuntime.__astronowPreviewProfile = previewCurrentProfile = { ...previewCurrentProfile, ...body, birth_details_change_count: 1 };
     return { profile: previewCurrentProfile, locked: true, changes_remaining: 0 };
   }
+  if (path === "/usage") return { premium: false, period: "month", used: 3, allowance: 10, bonus: previewRuntime.__astronowBonus ?? 0, remaining: 7 + (previewRuntime.__astronowBonus ?? 0) };
+  if (path === "/referral") return { code: "L6ZR6VMP", invited: 1, earned: 2, bonus_per_friend: 2, can_redeem: !previewRuntime.__astronowBonus };
+  if (path === "/referral/redeem") {
+    if (String(body?.code || "").toUpperCase() !== "FRIEND22") throw new Error("That invite code was not found. Check it and try again.");
+    previewRuntime.__astronowBonus = 2;
+    return { redeemed: true, bonus: 2 };
+  }
+  if (path === "/family" && method === "GET") return { members: previewFamily(), limit: 1, premium: false };
+  if (path === "/family" && method === "POST") {
+    const member = { id: `m${Date.now()}`, name: body?.name || "Family", relation: body?.relation, dob: body?.dob, birthplace: body?.birthplace, moon_sign: "Cancer", sun_sign: "Libra", lagna: "Scorpio" };
+    previewRuntime.__astronowFamily = [...previewFamily(), member];
+    return member;
+  }
+  if (path.startsWith("/family/") && path.endsWith("/today")) {
+    const member = previewFamily().find((m) => path.includes(m.id));
+    const base = await previewRequest("GET", "/today");
+    return { ...base, name: member?.name || "Family", energy: { ...base.energy, career: { value: 3, label: "Moderate" }, love: { value: 5, label: "Excellent" }, self: { value: 3, label: "Moderate" } } };
+  }
+  if (path.startsWith("/family/") && method === "DELETE") {
+    previewRuntime.__astronowFamily = previewFamily().filter((m) => !path.includes(m.id));
+    return { deleted: true };
+  }
+  if (path.startsWith("/moon-calendar")) return previewMoonCalendar(path);
+  if (path === "/muhurat/activities") return { activities: [
+    { id: "travel", label: "Travel" }, { id: "business", label: "Sign a deal or start a business" }, { id: "property", label: "Buy property or a vehicle" },
+    { id: "job", label: "Join a new job" }, { id: "housewarming", label: "Griha pravesh (housewarming)" }, { id: "engagement", label: "Engagement or marriage talks" }] };
+  if (path.startsWith("/muhurat?")) {
+    const start = new Date();
+    const results = [85, 85, 70, 60, 60, 45].map((score, i) => {
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 2 + i * 3);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+      return i === 0 ? { date: iso, weekday, score, locked: false, tithi: "Dwitiya", paksha: "Shukla", nakshatra: "Ashwini",
+        best_window: { start: "11:03 AM", end: "11:51 AM" }, avoid_window: { start: "1:30 PM", end: "3:00 PM" }, sunrise: "5:27 AM", sunset: "5:26 PM",
+        reasons: ["Ashwini nakshatra is traditionally favourable for this", "Dwitiya tithi supports new beginnings", "Waxing moon (Shukla paksha) favours growth"], cautions: [] }
+        : { date: iso, weekday, score, locked: true };
+    });
+    return { activity: "travel", label: "Travel", premium: false, results };
+  }
   if (path === "/account" && method === "DELETE") return { deleted: true };
   return {};
+}
+
+function previewFamily(): any[] {
+  return previewRuntime.__astronowFamily || [];
+}
+
+function previewMoonCalendar(path: string) {
+  const params = new URL(path, "https://preview.local").searchParams;
+  const now = new Date();
+  const year = Number(params.get("year")) || now.getFullYear();
+  const month = Number(params.get("month")) || now.getMonth() + 1;
+  const names = ["Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami", "Shashthi", "Saptami", "Ashtami", "Navami", "Dashami", "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi"];
+  const knownNew = Date.UTC(2026, 9, 10);
+  const days = [];
+  for (let day = 1; day <= new Date(year, month, 0).getDate(); day++) {
+    const t = Date.UTC(year, month - 1, day);
+    const age = (((t - knownNew) / 86400000) % 29.53 + 29.53) % 29.53;
+    const n = Math.min(30, Math.floor(age / 29.53 * 30) + 1);
+    const waxing = n <= 15;
+    const name = n === 15 ? "Purnima" : n === 30 ? "Amavasya" : names[(n - 1) % 15];
+    const events = [];
+    if (n === 15) events.push("Purnima · Full moon");
+    if (n === 30) events.push("Amavasya · New moon");
+    if (name === "Ekadashi") events.push("Ekadashi · fasting day");
+    if (name === "Trayodashi") events.push("Pradosh");
+    if (name === "Chaturthi") events.push(waxing ? "Vinayaka Chaturthi" : "Sankashti Chaturthi");
+    days.push({ date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`, tithi: name, tithi_number: n,
+      paksha: waxing ? "Shukla" : "Krishna", nakshatra: "Rohini", illumination: Math.round((1 - Math.abs(1 - 2 * n / 30)) * 1000) / 1000,
+      waxing, events, sunrise: "5:40 AM", sunset: "5:20 PM" });
+  }
+  return { year, month, days };
 }
 
 export async function previewStream(content: string, onChunk: (text: string) => void) {

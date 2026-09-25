@@ -21,6 +21,7 @@ import { AREAS, areaMeter, dayRuler, dayScore, meterPercent, scoreTone, type Are
 import { dailyCopy, dailyReading, moonPhaseLabel, moonPosition, readingLocale } from "@/src/content/daily-reading";
 import { translateText } from "@/src/i18n";
 import { rise } from "@/src/motion";
+import { todayPath, useActiveProfile } from "@/src/store/active-profile";
 import { useAuth } from "@/src/store/auth";
 import { makeStyles, radii, useTheme } from "@/src/theme";
 
@@ -32,6 +33,7 @@ export default function DailyReading() {
   const router = useRouter();
   const params = useLocalSearchParams<{ offset?: string; area?: string }>();
   const { profile, entitlement } = useAuth();
+  const { active } = useActiveProfile();
   const nudge = useNudge("daily-year", 24);
   const [sheet, setSheet] = useState(false);
   const [opened, setOpened] = useState(0);
@@ -45,8 +47,8 @@ export default function DailyReading() {
   const selectedDay = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
   const available = selectedOffset === 0 || selectedOffset === 1;
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: selectedOffset === 0 ? ["today", language] : ["today", language, selectedDay],
-    queryFn: () => api.get(selectedOffset === 0 ? "/today" : `/today?day=${selectedDay}`),
+    queryKey: [...(selectedOffset === 0 ? ["today", language] : ["today", language, selectedDay]), ...(active ? ["member", active.id] : [])],
+    queryFn: () => api.get(todayPath(active, selectedOffset === 0 ? undefined : selectedDay)),
     enabled: available, staleTime: 10 * 60 * 1000,
     refetchInterval: (query) => query.state.data?.reading_status === "generating" ? 5000 : false,
   });
@@ -64,7 +66,7 @@ export default function DailyReading() {
   };
 
   return (
-    <Screen title={`${profile?.first_name || "Your"}'s insights`} subtitle={(selectedOffset === 0 ? copy.today.charAt(0) + copy.today.slice(1).toLowerCase() + " · " : "") + selectedDate.toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" })} back>
+    <Screen title={`${active?.name || profile?.first_name || "Your"}'s insights`} subtitle={(selectedOffset === 0 ? copy.today.charAt(0) + copy.today.slice(1).toLowerCase() + " · " : "") + selectedDate.toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" })} back>
       <Animated.View entering={rise(0)} style={{ marginTop: 6 }}>
         <WeekStrip language={language} selected={selectedOffset} scores={{ [selectedOffset]: score }} onSelect={setSelectedOffset}
           todayLabel={selectedOffset === 1 ? tomorrowLabel(language) : copy.today} />

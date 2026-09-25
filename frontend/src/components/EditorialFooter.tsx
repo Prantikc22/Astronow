@@ -4,12 +4,13 @@ import { View } from "react-native";
 
 import { AppText } from "@/src/components/AppText";
 import { BrandMark } from "@/src/components/BrandMark";
-import { makeStyles, radii, useTheme } from "@/src/theme";
+import { makeStyles, useTheme } from "@/src/theme";
 
+/** A quiet sign-off at the end of a scroll: divider, mark, one line, one note. */
 export function EditorialFooter({
   kicker = "ASTRONOW",
-  title = "The stars offer a language.\nYou still write the life.",
-  note = "Specific guidance. Clear choices. No fear.",
+  title = "The stars offer a language. You still write the life.",
+  note,
 }: {
   kicker?: string;
   title?: string;
@@ -18,37 +19,23 @@ export function EditorialFooter({
   const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <LinearGradient colors={["rgba(44,36,83,0.16)", "rgba(90,45,66,0.34)", "rgba(11,11,26,0)"]} style={styles.wrap}>
-      <View style={styles.mark}><BrandMark size={48} /></View>
-      <AppText variant="label" style={{ color: colors.gold, letterSpacing: 1.8 }}>{kicker}</AppText>
-      <AppText variant="hero" style={styles.title}>{title}</AppText>
-      <AppText variant="body" muted style={styles.note}>{note}</AppText>
-    </LinearGradient>
+    <View style={styles.wrap}>
+      <View style={styles.rule}>
+        <LinearGradient colors={["rgba(235,226,250,0)", "rgba(235,226,250,0.18)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.line} />
+        <BrandMark size={26} />
+        <LinearGradient colors={["rgba(235,226,250,0.18)", "rgba(235,226,250,0)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.line} />
+      </View>
+      <AppText variant="label" center style={{ color: colors.muted, letterSpacing: 1.4, fontSize: 10, marginTop: 12 }}>{kicker}</AppText>
+      <AppText center style={styles.title}>{title.replace(/\n/g, " ")}</AppText>
+      {note ? <AppText variant="caption" muted center style={styles.note}>{note}</AppText> : null}
+    </View>
   );
 }
 
 const useStyles = makeStyles((colors) => ({
-  wrap: {
-    minHeight: 240,
-    marginTop: 40,
-    paddingHorizontal: 22,
-    paddingVertical: 30,
-    borderRadius: radii.xl,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderStrong,
-    justifyContent: "flex-end",
-  },
-  mark: {
-    width: 62,
-    height: 62,
-    marginBottom: "auto",
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.brandTertiary,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  title: { marginTop: 10, fontSize: 30, lineHeight: 35, maxWidth: 320 },
-  note: { marginTop: 12 },
+  wrap: { marginTop: 28, paddingTop: 8, paddingBottom: 8, paddingHorizontal: 12, alignItems: "center" },
+  rule: { flexDirection: "row", alignItems: "center", gap: 12, alignSelf: "stretch" },
+  line: { flex: 1, height: 1 },
+  title: { marginTop: 6, fontFamily: "Fraunces-Medium", fontSize: 17, lineHeight: 24, color: colors.onSurface, maxWidth: 300 },
+  note: { marginTop: 6, maxWidth: 300, lineHeight: 18 },
 }));
