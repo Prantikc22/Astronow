@@ -151,3 +151,10 @@ AstroNow provides astrology and spiritual reflection, not medical, legal or fina
 - **Personal reports** (`/api/reports/{slug}/personal`): Plus members (and buyers of Artha Strategy or the 12-Year Compass) get a report written from their own chart by the deep model, following a fixed outline per report (`backend/report_ai.py`). It is generated once in the background (about 1-2 minutes), cached per chart, language and version, and the app polls until it is ready. Free users see the template sample with the rest locked.
 - **Question packs** (`questions_10`, `questions_30`): consumable store products. After purchase the app calls `/api/questions/sync`, which verifies transactions with RevenueCat and credits each one exactly once as bonus questions.
 - Both need `REVENUECAT_SECRET_KEY` in `backend/.env` to verify purchases server-side, and the products must exist in App Store Connect / Play Console and the RevenueCat offering.
+
+## Mobile number sign-in
+
+- **Flow:** the app sends the number to `/api/auth/phone/send`; the backend asks Message Central VerifyNow to text a 6-digit code. `/api/auth/phone/verify` checks the code with VerifyNow, finds or creates the Supabase user who owns that number (stored in `auth.users.phone`, confirmed), and returns a normal Supabase session minted with an admin one-time sign-in token. The app hands it to supabase-js with `setSession`.
+- **One account per person:** a number can belong to only one account (checked server-side). Email and Google accounts must verify a number once (`/verify-phone`, via `/api/auth/phone/link`); if the number already has an account, they are asked to sign in with it instead. Supabase already keeps email addresses unique and links Google to an existing account with the same verified email.
+- **Supabase settings:** none are needed for mobile sign-in; it uses the Email provider and the service-role admin API. Keep the Email provider enabled.
+- **Limits:** 30 s resend cooldown, 5 codes per number per hour, 20 per IP per hour, 5 wrong attempts per code. Pending codes live in the API process memory; if you run more than one backend instance, move them to Redis or a table.

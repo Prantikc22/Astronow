@@ -13,6 +13,7 @@ import { CosmicBackground } from "@/src/components/CosmicBackground";
 import { Button } from "@/src/components/Button";
 import { Icon } from "@/src/components/Icon";
 import { MotionPressable } from "@/src/components/MotionPressable";
+import { OtpInput, PhoneInput } from "@/src/components/PhoneInput";
 import { TextField } from "@/src/components/TextField";
 import { useAuth } from "@/src/store/auth";
 import { makeStyles, radii, useTheme } from "@/src/theme";
@@ -41,8 +42,20 @@ export default function AuthScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { signup, login, signInWithGoogle, requestPasswordReset, enterPreview, authConfigured } = useAuth();
+  const { signup, login, signInWithGoogle, requestPasswordReset, enterPreview, authConfigured, sendPhoneCode, verifyPhone } = useAuth();
+  const [method, setMethod] = useState<"phone" | "email">("phone");
   const [mode, setMode] = useState<"signin" | "signup">("signup");
+  const [country, setCountry] = useState("91");
+  const [mobile, setMobile] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -123,6 +136,41 @@ export default function AuthScreen() {
     }
   };
 
+  const sendCode = async () => {
+    setError(null);
+    setNotice(null);
+    if (mobile.length < 6) { setError("Enter your mobile number."); haptics.warning(); return; }
+    setLoading(true);
+    try {
+      const r = await sendPhoneCode(country, mobile);
+      setCodeSent(true);
+      setCode("");
+      setResendIn(r.resend_after);
+    } catch (e: any) {
+      setError(friendlyAuthError(e));
+      haptics.error();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkCode = async (value = code) => {
+    if (value.length < 6 || loading) return;
+    setError(null);
+    setCodeError(false);
+    setLoading(true);
+    try {
+      await verifyPhone(country, mobile, value);
+      router.replace("/");
+    } catch (e: any) {
+      setCodeError(true);
+      setError(friendlyAuthError(e));
+      setCode("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.root}>
       <CosmicBackground />
@@ -141,14 +189,38 @@ export default function AuthScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(enterAt + 600).duration(460).easing(Easing.bezier(0.22, 1, 0.36, 1))} style={styles.sheet}>
-          <AppText variant="title" center>{mode === "signup" ? "Create your free account" : "Welcome back"}</AppText>
+          <AppText variant="title" center>{method === "phone" ? "Sign in or create your account" : mode === "signup" ? "Create your free account" : "Welcome back"}</AppText>
           <AppText variant="caption" muted center style={{ marginTop: 4, marginBottom: 16 }}>
-            {mode === "signup" ? "Your birth chart in under a minute. No card needed." : "Your chart and conversations are waiting."}
+            {method === "phone" ? "One account per number. Your birth chart in under a minute." : mode === "signup" ? "Your birth chart in under a minute. No card needed." : "Your chart and conversations are waiting."}
           </AppText>
 
-          <AuthToggle mode={mode} onChange={(item) => { setMode(item); setError(null); setNotice(null); }} />
+          <AuthToggle value={method} items={[["phone", "Mobile"], ["email", "Email"]]} onChange={(item) => { setMethod(item as "phone" | "email"); setError(null); setNotice(null); }} />
 
-          <Animated.View key={mode} entering={FadeInDown.duration(280)} layout={LinearTransition.duration(220)} style={styles.fields}>
+          {method === "phone" ? (
+            <Animated.View key={codeSent ? "code" : "number"} entering={FadeInDown.duration(280)} style={styles.fields}>
+              {!codeSent ? (
+                <>
+                  <PhoneInput country={country} onCountry={setCountry} value={mobile} onChange={setMobile} onSubmit={sendCode} />
+                  <AppText variant="caption" muted>We&apos;ll text a 6-digit code to verify it&apos;s you.</AppText>
+                </>
+              ) : (
+                <>
+                  <View style={styles.sentRow}>
+                    <AppText variant="caption" muted style={{ flex: 1 }}>{`Enter the code sent to +${country} ${mobile}`}</AppText>
+                    <MotionPressable onPress={() => { setCodeSent(false); setError(null); }} hitSlop={8} testID="auth-change-number">
+                      <AppText variant="caption" style={{ color: colors.violet }}>Change</AppText>
+                    </MotionPressable>
+                  </View>
+                  <OtpInput value={code} onChange={(v) => { setCode(v); setCodeError(false); }} onComplete={checkCode} error={codeError} />
+                  <MotionPressable onPress={sendCode} disabled={resendIn > 0 || loading} style={styles.resend} testID="auth-resend">
+                    <AppText variant="caption" style={{ color: resendIn > 0 ? colors.muted : colors.violet }}>{resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}</AppText>
+                  </MotionPressable>
+                </>
+              )}
+            </Animated.View>
+          ) : null}
+
+          {method === "email" ? <Animated.View key={mode} entering={FadeInDown.duration(280)} layout={LinearTransition.duration(220)} style={styles.fields}>
             {mode === "signup" ? <TextField label="First name" value={firstName} onChangeText={setFirstName}
               placeholder="What should Tara call you?" autoCapitalize="words" autoComplete="name" testID="auth-firstname" /> : null}
             <TextField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com"
@@ -156,24 +228,36 @@ export default function AuthScreen() {
             <TextField label="Password" value={password} onChangeText={setPassword} placeholder="At least 6 characters"
               secureTextEntry autoComplete={mode === "signup" ? "new-password" : "current-password"}
               onSubmitEditing={submit} testID="auth-password" />
-          </Animated.View>
+          </Animated.View> : null}
 
-          {mode === "signin" ? <MotionPressable onPress={resetPassword} style={styles.forgot} testID="auth-forgot">
-            <AppText variant="caption" style={{ color: colors.violet }}>Forgot password?</AppText>
-          </MotionPressable> : null}
+          {method === "email" ? (
+            <View style={styles.emailLinks}>
+              <MotionPressable onPress={() => { setMode(mode === "signup" ? "signin" : "signup"); setError(null); setNotice(null); }} hitSlop={8} testID="auth-toggle-mode">
+                <AppText variant="caption" style={{ color: colors.violet }}>{mode === "signup" ? "Have an account? Sign in" : "New here? Create an account"}</AppText>
+              </MotionPressable>
+              {mode === "signin" ? <MotionPressable onPress={resetPassword} hitSlop={8} testID="auth-forgot">
+                <AppText variant="caption" style={{ color: colors.violet }}>Forgot password?</AppText>
+              </MotionPressable> : null}
+            </View>
+          ) : null}
           {error ? <Animated.View entering={FadeInDown.duration(240)} style={styles.errorBox}><Icon name="alert-circle" size={15} color={colors.coralSoft} /><AppText variant="caption" style={{ color: colors.coralSoft, flex: 1 }} testID="auth-error">{error}</AppText></Animated.View> : null}
           {notice ? <Animated.View entering={FadeInDown.duration(240)} style={styles.noticeBox}><Icon name="check-circle" size={15} color={colors.goldSoft} /><AppText variant="caption" style={{ color: colors.goldSoft, flex: 1 }} testID="auth-notice">{notice}</AppText></Animated.View> : null}
           {!authConfigured ? <AppText variant="caption" center style={styles.configNote}>This local build still needs its public Supabase URL and publishable key.</AppText> : null}
 
-          <Button label={mode === "signup" ? "Reveal my chart" : "Sign in"} onPress={submit} shine
-            loading={loading} iconRight="arrow-right" testID="auth-submit" style={{ marginTop: 18 }} haptic="medium" />
+          {method === "phone" ? (
+            <Button label={codeSent ? "Verify and continue" : "Send code"} onPress={codeSent ? () => checkCode() : sendCode} shine
+              loading={loading} disabled={codeSent ? code.length < 6 : mobile.length < 6} iconRight="arrow-right" testID="auth-phone-submit" style={{ marginTop: 18 }} haptic="medium" />
+          ) : (
+            <Button label={mode === "signup" ? "Reveal my chart" : "Sign in"} onPress={submit} shine
+              loading={loading} iconRight="arrow-right" testID="auth-submit" style={{ marginTop: 18 }} haptic="medium" />
+          )}
           {loading ? <Animated.View entering={FadeIn.duration(180)}><AppText variant="caption" muted center style={styles.loadingCopy}>Opening your private chart…</AppText></Animated.View> : null}
           <View style={styles.divider}><View style={styles.dividerLine} /><AppText variant="caption" muted>or</AppText><View style={styles.dividerLine} /></View>
           <MotionPressable onPress={google} disabled={loading || !authConfigured || !googleReady} style={[styles.googleButton, (loading || !authConfigured || !googleReady) && { opacity: 0.5 }]} testID="auth-google" accessibilityLabel="Continue with Google">
             <View style={styles.googleBadge}><AppText style={styles.googleGlyph}>G</AppText></View>
             <AppText variant="label" style={{ color: colors.onSurface, fontSize: 15 }}>Continue with Google</AppText>
           </MotionPressable>
-          {!googleReady ? <AppText variant="caption" muted center style={{ marginTop: 6 }}>Google sign-in is coming soon. Email works today.</AppText> : null}
+          {!googleReady ? <AppText variant="caption" muted center style={{ marginTop: 6 }}>Google sign-in is coming soon. Mobile and email work today.</AppText> : null}
           {isPreviewMode() ? <MotionPressable onPress={() => { enterPreview(); router.replace("/"); }}
             style={styles.previewButton} testID="auth-preview">
             <Icon name="eye" size={16} color={colors.muted} />
@@ -190,19 +274,20 @@ export default function AuthScreen() {
   );
 }
 
-function AuthToggle({ mode, onChange }: { mode: "signin" | "signup"; onChange: (mode: "signin" | "signup") => void }) {
+function AuthToggle({ value, items, onChange }: { value: string; items: [string, string][]; onChange: (key: string) => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [w, setW] = useState(0);
   const x = useSharedValue(0);
-  useEffect(() => { x.value = withSpring(mode === "signup" ? 0 : w / 2, springs.snappy); }, [mode, w, x]);
+  const slot = w / items.length;
+  useEffect(() => { x.value = withSpring(Math.max(0, items.findIndex(([k]) => k === value)) * slot, springs.snappy); }, [value, slot, items, x]);
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (
     <View style={styles.toggle} onLayout={(e) => setW(e.nativeEvent.layout.width - 8)}>
-      {w ? <Animated.View style={[styles.togglePill, { width: w / 2 }, pill]} /> : null}
-      {(["signup", "signin"] as const).map((item) => (
-        <MotionPressable key={item} onPress={() => onChange(item)} testID={`auth-toggle-${item}`} style={styles.toggleItem}>
-          <AppText variant="label" style={{ color: mode === item ? colors.ink : colors.muted, fontSize: 14 }}>{item === "signup" ? "Create account" : "Sign in"}</AppText>
+      {w ? <Animated.View style={[styles.togglePill, { width: slot }, pill]} /> : null}
+      {items.map(([key, label]) => (
+        <MotionPressable key={key} onPress={() => onChange(key)} testID={`auth-toggle-${key}`} style={styles.toggleItem}>
+          <AppText variant="label" style={{ color: value === key ? colors.ink : colors.muted, fontSize: 14 }}>{label}</AppText>
         </MotionPressable>
       ))}
     </View>
@@ -219,6 +304,9 @@ const useStyles = makeStyles((colors) => ({
   togglePill: { position: "absolute", left: 4, top: 4, bottom: 4, borderRadius: 9, backgroundColor: colors.gold },
   toggleItem: { flex: 1, height: 42, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   fields: { gap: 12, marginTop: 16 },
+  sentRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  resend: { alignSelf: "center", paddingVertical: 6 },
+  emailLinks: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
   forgot: { alignSelf: "flex-end", paddingVertical: 8, paddingHorizontal: 3 },
   errorBox: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, padding: 11, borderRadius: 10, backgroundColor: "rgba(217,121,162,0.1)", borderWidth: 1, borderColor: "rgba(217,121,162,0.3)" },
   noticeBox: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, padding: 11, borderRadius: 10, backgroundColor: "rgba(242,200,121,0.08)", borderWidth: 1, borderColor: "rgba(242,200,121,0.3)" },

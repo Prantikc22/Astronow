@@ -137,7 +137,7 @@ export default function You() {
             </LinearGradient>
             <View style={{ flex: 1 }}>
               <AppText variant="title">{profile?.first_name || "Traveller"}</AppText>
-              <AppText variant="caption" muted numberOfLines={1}>{user?.email || "Your private space"}</AppText>
+              <AppText variant="caption" muted numberOfLines={1}>{[user?.phone, user?.email].filter(Boolean).join(" · ") || "Your private space"}</AppText>
               {profile?.birthplace ? <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}><Icon name="map-pin" size={12} color={colors.muted} /><AppText variant="caption" muted style={{ flex: 1 }}>{profile.birthplace}</AppText></View> : null}
             </View>
           </View>

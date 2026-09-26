@@ -17,7 +17,7 @@ type AuthState = {
   ready: boolean;
   authed: boolean;
   onboarded: boolean;
-  user: { id: string; email?: string } | null;
+  user: { id: string; email?: string | null; phone?: string | null; phone_verified?: boolean } | null;
   profile: Profile | null;
   entitlement: Entitlement;
   signup: (email: string, password: string, firstName?: string) => Promise<{ needsEmailConfirmation: boolean }>;
@@ -26,6 +26,12 @@ type AuthState = {
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   enterPreview: () => void;
+  /** Texts a sign-in code (Message Central). */
+  sendPhoneCode: (countryCode: string, phone: string) => Promise<{ length: number; resend_after: number }>;
+  /** Signs in or signs up with a verified mobile number. */
+  verifyPhone: (countryCode: string, phone: string, code: string) => Promise<{ isNew: boolean }>;
+  /** Attaches a verified number to the signed-in email/Google account. */
+  linkPhone: (countryCode: string, phone: string, code: string) => Promise<void>;
   authConfigured: boolean;
   refresh: () => Promise<boolean>;
   setProfileLocal: (p: Profile) => void;
@@ -46,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(!supabase);
   const [authed, setAuthed] = useState(isPreviewSession());
   const [onboarded, setOnboarded] = useState(isPreviewSession());
-  const [user, setUser] = useState<AuthState["user"]>(isPreviewSession() ? { id: "preview-user", email: "preview@astronow.app" } : null);
+  const [user, setUser] = useState<AuthState["user"]>(isPreviewSession() ? { id: "preview-user", email: "preview@astronow.app", phone: "+919876543210", phone_verified: true } : null);
   const [profile, setProfile] = useState<Profile | null>(isPreviewSession() ? getPreviewProfile() : null);
   const [entitlement, setEntitlement] = useState<Entitlement>({ tier: "free", premium: false });
 
@@ -56,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Preview data may fill missing chart content, but it must never replace a
       // real signed-in person's identity with the demo name.
       const firstName = sessionUser ? sessionFirstName(sessionUser) : previewProfile.first_name;
-      setUser(sessionUser ? { id: sessionUser.id, email: sessionUser.email } : { id: "preview-user", email: "preview@astronow.app" });
+      setUser(sessionUser ? { id: sessionUser.id, email: sessionUser.email, phone_verified: true } : { id: "preview-user", email: "preview@astronow.app", phone: "+919876543210", phone_verified: true });
       setProfile({ ...previewProfile, first_name: firstName });
       setOnboarded(true);
       setEntitlement({ tier: "free", premium: false, source: "preview" });
@@ -182,6 +188,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setEntitlement({ tier: "free", premium: false });
   }, []);
 
+  const sendPhoneCode = useCallback(async (countryCode: string, phone: string) => {
+    const result = await api.post("/auth/phone/send", { country_code: countryCode, phone }, false);
+    haptics.light();
+    return { length: result.length || 6, resend_after: result.resend_after || 30 };
+  }, []);
+
+  const verifyPhone = useCallback(async (countryCode: string, phone: string, code: string) => {
+    if (isPreviewMode() && isPreviewSession()) {
+      await fetchMe();
+      return { isNew: false };
+    }
+    setPreviewSession(false);
+    queryClient.clear();
+    const result = await api.post("/auth/phone/verify", { country_code: countryCode, phone, code }, false);
+    const client = requireSupabase();
+    // Hand the server-issued session to supabase-js so refresh and sign-out work as usual.
+    const { data, error } = await client.auth.setSession({ access_token: result.access_token, refresh_token: result.refresh_token });
+    if (error || !data.session) throw error || new Error("We couldn't start your session. Please try again.");
+    setAccessToken(data.session.access_token);
+    const synced = await fetchMe(data.session.user);
+    if (!synced) throw new Error("You are signed in, but AstroNow could not load your account. Please check your connection and try again.");
+    haptics.success();
+    return { isNew: !!result.is_new };
+  }, [fetchMe]);
+
+  const linkPhone = useCallback(async (countryCode: string, phone: string, code: string) => {
+    await api.post("/auth/phone/link", { country_code: countryCode, phone, code });
+    await fetchMe(user ? { id: user.id, email: user.email || undefined } : undefined);
+    haptics.success();
+  }, [fetchMe, user]);
+
   const requestPasswordReset = useCallback(async (email: string) => {
     const client = requireSupabase();
     const { error } = await client.auth.resetPasswordForEmail(email);
@@ -194,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPreviewSession(true);
     queryClient.clear();
     const previewProfile = getPreviewProfile();
-    setUser({ id: "preview-user", email: "preview@astronow.app" });
+    setUser({ id: "preview-user", email: "preview@astronow.app", phone: "+919876543210", phone_verified: true });
     setProfile(previewProfile);
     setOnboarded(true);
     setEntitlement({ tier: "free", premium: false, source: "preview" });
@@ -206,8 +243,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         ready, authed, onboarded, user, profile, entitlement,
-        signup, login, signInWithGoogle, logout, requestPasswordReset, enterPreview, authConfigured: supabaseConfigured,
-        refresh: () => fetchMe(user || undefined), setProfileLocal: setProfile,
+        signup, login, signInWithGoogle, logout, requestPasswordReset, enterPreview, sendPhoneCode, verifyPhone, linkPhone, authConfigured: supabaseConfigured,
+        refresh: () => fetchMe(user ? { id: user.id, email: user.email || undefined } : undefined), setProfileLocal: setProfile,
       }}
     >
       {children}

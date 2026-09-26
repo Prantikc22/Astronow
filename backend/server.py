@@ -12,13 +12,14 @@ from datetime import date, datetime, time as dtime, timedelta, timezone
 from typing import Any, Literal, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
 
 import ai_gateway
 import growth
+import phone_auth
 import report_ai
 import config
 import context_engine
@@ -1381,6 +1382,45 @@ async def personal_report(slug: str, user: dict = User):
                                           (profile or {}).get("terminology_mode", "both"), language, json.dumps(ctx, default=str))
         _report_tasks[task_key] = asyncio.create_task(_generate_report(cache_key, user["id"], slug, request))
     return {"status": "generating"}
+
+
+# --------------------------------------------------------------------------- #
+# Mobile number sign-in (Message Central VerifyNow)
+# --------------------------------------------------------------------------- #
+class PhoneIn(BaseModel):
+    country_code: str = Field(min_length=1, max_length=5)
+    phone: str = Field(min_length=6, max_length=20)
+
+
+class PhoneCodeIn(PhoneIn):
+    code: str = Field(min_length=4, max_length=8)
+
+
+@api.post("/auth/phone/send")
+async def phone_send(body: PhoneIn, request: Request):
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    return await phone_auth.send_code(body.country_code, body.phone, ip)
+
+
+@api.post("/auth/phone/verify")
+async def phone_verify(body: PhoneCodeIn):
+    """Sign in or sign up with a verified mobile number. Returns a Supabase session."""
+    _require_db()
+    e164 = await phone_auth.check_code(body.country_code, body.phone, body.code)
+    result = await phone_auth.sign_in(e164)
+    await _track(result["user"]["id"], "phone_signin", {"new": result["is_new"]})
+    return result
+
+
+@api.post("/auth/phone/link")
+async def phone_link(body: PhoneCodeIn, user: dict = User):
+    """Attach a verified number to the signed-in (email/Google) account."""
+    _require_db()
+    e164 = await phone_auth.check_code(body.country_code, body.phone, body.code)
+    result = await phone_auth.link(user["id"], e164)
+    supa_auth.forget_user(user["id"])
+    await _track(user["id"], "phone_linked", {})
+    return result
 
 
 @api.get("/")

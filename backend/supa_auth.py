@@ -104,10 +104,22 @@ async def get_user_from_token(token: str) -> dict:
         if r.status_code != 200:
             raise HTTPException(401, "Not authenticated.")
         u = r.json()
-        user = {"id": u["id"], "email": u.get("email"),
-                "first_name": (u.get("user_metadata") or {}).get("first_name")}
+        meta = u.get("user_metadata") or {}
+        phone = f"+{u['phone'].lstrip('+')}" if u.get("phone") else meta.get("phone")
+        email = u.get("email")
+        # Phone-only accounts carry a hidden sign-in address; never show it as "their email".
+        if email and email.endswith("@phone.astronow.app"):
+            email = None
+        user = {"id": u["id"], "email": email, "first_name": meta.get("first_name"), "phone": phone,
+                "phone_verified": bool(u.get("phone_confirmed_at") or meta.get("phone_verified"))}
         _token_cache[token] = (user, now + _CACHE_TTL)
         return user
+
+
+def forget_user(user_id: str) -> None:
+    """Drops cached token lookups so profile changes (e.g. a linked phone) show at once."""
+    for tok in [t for t, v in _token_cache.items() if v[0]["id"] == user_id]:
+        _token_cache.pop(tok, None)
 
 
 async def delete_user(user_id: str) -> None:

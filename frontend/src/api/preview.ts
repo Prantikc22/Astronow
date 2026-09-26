@@ -51,6 +51,7 @@ const previewRuntime = globalThis as typeof globalThis & {
   __astronowFamily?: any[];
   __astronowBonus?: number;
   __astronowReportPolls?: number;
+  __astronowPhone?: string;
 };
 let previewCurrentProfile = previewRuntime.__astronowPreviewProfile || { ...previewProfile };
 
@@ -88,7 +89,7 @@ export function isPreviewSession() {
 
 export async function previewRequest(method: string, path: string, body?: any): Promise<any> {
   await new Promise((resolve) => setTimeout(resolve, method === "GET" ? 180 : 320));
-  if (path === "/auth/me") return { user: { id: "preview-user", email: "preview@astronow.app" }, profile: previewCurrentProfile, onboarded: true, entitlement: { tier: "free", premium: false, source: "preview" } };
+  if (path === "/auth/me") return { user: { id: "preview-user", email: "preview@astronow.app", phone: previewRuntime.__astronowPhone || "+919876543210", phone_verified: true }, profile: previewCurrentProfile, onboarded: true, entitlement: { tier: "free", premium: false, source: "preview" } };
   if (path.startsWith("/terminology")) return { mode: "both", terms: { kundli: "Birth Chart · Kundli", nakshatra: "Birth Star · Nakshatra", mahadasha: "Major Life Period · Mahadasha", gochar: "Transit · Gochar", guna_milan: "Compatibility · Guna Milan", vastu: "Vastu Home Analysis", muhurat: "Auspicious Timing · Muhurat", panchang: "Daily Calendar · Panchang", lagna: "Ascendant · Lagna", tithi: "Tithi", yoga: "Yoga", karana: "Karana" } };
   if (path === "/config") return { feature_flags: { lifetime_offer: false }, free_chat_allowance: 10, fairuse_daily_messages: 25, paywall: { products }, persistence_enabled: false, preview: true };
   if (path.startsWith("/geo/search")) {
@@ -209,6 +210,8 @@ export async function previewRequest(method: string, path: string, body?: any): 
       closing: "Your chart favours depth over speed. Choose the path that can keep growing with you.",
     } };
   }
+  if (path === "/auth/phone/send") return { sent: true, phone: `+${body?.country_code}${body?.phone}`, length: 6, resend_after: 30 };
+  if (path === "/auth/phone/link") { previewRuntime.__astronowPhone = `+${body?.country_code}${body?.phone}`; return { linked: true }; }
   if (path === "/account" && method === "DELETE") return { deleted: true };
   return {};
 }
