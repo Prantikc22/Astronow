@@ -14,9 +14,10 @@ import { Button } from "@/src/components/Button";
 import { Icon } from "@/src/components/Icon";
 import { MotionPressable } from "@/src/components/MotionPressable";
 import { OtpInput, PhoneInput } from "@/src/components/PhoneInput";
+import { countryByIso, defaultCountryIso } from "@/src/content/countries";
 import { TextField } from "@/src/components/TextField";
 import { useAuth } from "@/src/store/auth";
-import { makeStyles, radii, useTheme } from "@/src/theme";
+import { makeStyles, useTheme } from "@/src/theme";
 import { springs } from "@/src/motion";
 import { haptics } from "@/src/utils/haptics";
 
@@ -27,7 +28,6 @@ const TAGLINES = [
   "Vedic wisdom. Modern clarity.",
   "Ask anything. Tara reads your stars.",
 ];
-const PERKS: [string, string][] = [["target", "Precise Vedic chart"], ["message-circle", "Tara, your 24x7 Astrologer"], ["shield", "Private by design"]];
 
 function friendlyAuthError(cause: any) {
   const message = String(cause?.message || "");
@@ -45,7 +45,8 @@ export default function AuthScreen() {
   const { signup, login, signInWithGoogle, requestPasswordReset, enterPreview, authConfigured, sendPhoneCode, verifyPhone } = useAuth();
   const [method, setMethod] = useState<"phone" | "email">("phone");
   const [mode, setMode] = useState<"signin" | "signup">("signup");
-  const [country, setCountry] = useState("91");
+  const [country, setCountry] = useState(defaultCountryIso);
+  const dial = countryByIso(country).code;
   const [mobile, setMobile] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState("");
@@ -142,7 +143,7 @@ export default function AuthScreen() {
     if (mobile.length < 6) { setError("Enter your mobile number."); haptics.warning(); return; }
     setLoading(true);
     try {
-      const r = await sendPhoneCode(country, mobile);
+      const r = await sendPhoneCode(dial, mobile);
       setCodeSent(true);
       setCode("");
       setResendIn(r.resend_after);
@@ -160,7 +161,7 @@ export default function AuthScreen() {
     setCodeError(false);
     setLoading(true);
     try {
-      await verifyPhone(country, mobile, value);
+      await verifyPhone(dial, mobile, value);
       router.replace("/");
     } catch (e: any) {
       setCodeError(true);
@@ -179,19 +180,11 @@ export default function AuthScreen() {
         showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <BrandLockup taglines={TAGLINES} />
 
-        <Animated.View entering={FadeIn.delay(enterAt + 1100).duration(500)} style={styles.perks}>
-          {PERKS.map(([icon, label]) => (
-            <View key={label} style={styles.perk}>
-              <Icon name={icon} size={15} color={colors.goldSoft} weight="duotone" />
-              <AppText variant="caption" style={{ color: colors.onSurface }}>{label}</AppText>
-            </View>
-          ))}
-        </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(enterAt + 600).duration(460).easing(Easing.bezier(0.22, 1, 0.36, 1))} style={styles.sheet}>
-          <AppText variant="title" center>{method === "phone" ? "Sign in or create your account" : mode === "signup" ? "Create your free account" : "Welcome back"}</AppText>
-          <AppText variant="caption" muted center style={{ marginTop: 4, marginBottom: 16 }}>
-            {method === "phone" ? "One account per number. Your birth chart in under a minute." : mode === "signup" ? "Your birth chart in under a minute. No card needed." : "Your chart and conversations are waiting."}
+          <AppText variant="title" style={{ fontSize: 21, lineHeight: 27 }}>{method === "email" && mode === "signin" ? "Welcome back" : "Welcome to AstroNow"}</AppText>
+          <AppText variant="caption" muted style={{ marginTop: 3, marginBottom: 16 }}>
+            {method === "phone" ? "Sign in or create an account in seconds." : mode === "signup" ? "Create your account with email." : "Sign in with your email and password."}
           </AppText>
 
           <AuthToggle value={method} items={[["phone", "Mobile"], ["email", "Email"]]} onChange={(item) => { setMethod(item as "phone" | "email"); setError(null); setNotice(null); }} />
@@ -201,12 +194,12 @@ export default function AuthScreen() {
               {!codeSent ? (
                 <>
                   <PhoneInput country={country} onCountry={setCountry} value={mobile} onChange={setMobile} onSubmit={sendCode} />
-                  <AppText variant="caption" muted>We&apos;ll text a 6-digit code to verify it&apos;s you.</AppText>
+                  <AppText variant="caption" muted style={{ fontSize: 12 }}>We&apos;ll text you a 6-digit code.</AppText>
                 </>
               ) : (
                 <>
                   <View style={styles.sentRow}>
-                    <AppText variant="caption" muted style={{ flex: 1 }}>{`Enter the code sent to +${country} ${mobile}`}</AppText>
+                    <AppText variant="caption" muted style={{ flex: 1 }}>{`Enter the code sent to +${dial} ${mobile}`}</AppText>
                     <MotionPressable onPress={() => { setCodeSent(false); setError(null); }} hitSlop={8} testID="auth-change-number">
                       <AppText variant="caption" style={{ color: colors.violet }}>Change</AppText>
                     </MotionPressable>
@@ -256,8 +249,8 @@ export default function AuthScreen() {
           <MotionPressable onPress={google} disabled={loading || !authConfigured || !googleReady} style={[styles.googleButton, (loading || !authConfigured || !googleReady) && { opacity: 0.5 }]} testID="auth-google" accessibilityLabel="Continue with Google">
             <View style={styles.googleBadge}><AppText style={styles.googleGlyph}>G</AppText></View>
             <AppText variant="label" style={{ color: colors.onSurface, fontSize: 15 }}>Continue with Google</AppText>
+            {!googleReady ? <View style={styles.soon}><AppText variant="caption" style={{ fontSize: 10, color: colors.muted }}>Soon</AppText></View> : null}
           </MotionPressable>
-          {!googleReady ? <AppText variant="caption" muted center style={{ marginTop: 6 }}>Google sign-in is coming soon. Mobile and email work today.</AppText> : null}
           {isPreviewMode() ? <MotionPressable onPress={() => { enterPreview(); router.replace("/"); }}
             style={styles.previewButton} testID="auth-preview">
             <Icon name="eye" size={16} color={colors.muted} />
@@ -266,8 +259,8 @@ export default function AuthScreen() {
         </Animated.View>
 
         <View style={styles.promiseRow}>
-          <Icon name="lock" size={13} color={colors.violet} />
-          <AppText variant="caption" muted center>Your birth details stay private to your account. Delete anytime.</AppText>
+          <Icon name="lock" size={12} color={colors.muted} />
+          <AppText variant="caption" muted center style={{ fontSize: 11.5 }}>Private by design. By continuing you agree to our Terms and Privacy Policy.</AppText>
         </View>
       </KeyboardAwareScrollView>
     </View>
@@ -281,15 +274,16 @@ function AuthToggle({ value, items, onChange }: { value: string; items: [string,
   const x = useSharedValue(0);
   const slot = w / items.length;
   useEffect(() => { x.value = withSpring(Math.max(0, items.findIndex(([k]) => k === value)) * slot, springs.snappy); }, [value, slot, items, x]);
-  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  const bar = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  // Text tabs with a sliding gold underline: lighter than a filled pill.
   return (
-    <View style={styles.toggle} onLayout={(e) => setW(e.nativeEvent.layout.width - 8)}>
-      {w ? <Animated.View style={[styles.togglePill, { width: slot }, pill]} /> : null}
+    <View style={styles.toggle} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
       {items.map(([key, label]) => (
-        <MotionPressable key={key} onPress={() => onChange(key)} testID={`auth-toggle-${key}`} style={styles.toggleItem}>
-          <AppText variant="label" style={{ color: value === key ? colors.ink : colors.muted, fontSize: 14 }}>{label}</AppText>
+        <MotionPressable key={key} onPress={() => onChange(key)} testID={`auth-toggle-${key}`} style={styles.toggleItem} haptic="selection">
+          <AppText variant="label" style={{ color: value === key ? colors.onSurface : colors.muted, fontSize: 14.5 }}>{label}</AppText>
         </MotionPressable>
       ))}
+      {w ? <Animated.View style={[styles.toggleBar, { width: slot }, bar]}><View style={styles.toggleBarInner} /></Animated.View> : null}
     </View>
   );
 }
@@ -297,13 +291,13 @@ function AuthToggle({ value, items, onChange }: { value: string; items: [string,
 const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   content: { minHeight: "100%", paddingHorizontal: 20 },
-  perks: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 18 },
-  perk: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 30, borderRadius: 8, backgroundColor: "rgba(33,31,59,0.8)", borderWidth: 1, borderColor: colors.border },
-  sheet: { marginTop: 22, padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(17,16,42,0.94)", borderWidth: 1, borderColor: colors.borderStrong, shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
-  toggle: { flexDirection: "row", borderRadius: 12, padding: 4, backgroundColor: colors.surfaceTertiary },
-  togglePill: { position: "absolute", left: 4, top: 4, bottom: 4, borderRadius: 9, backgroundColor: colors.gold },
-  toggleItem: { flex: 1, height: 42, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  sheet: { marginTop: 26, paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, borderRadius: 20, backgroundColor: "rgba(20,18,44,0.78)", borderWidth: 1, borderColor: "rgba(235,226,250,0.09)" },
+  toggle: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "rgba(235,226,250,0.08)" },
+  toggleBar: { position: "absolute", left: 0, bottom: -1, height: 2, alignItems: "center" },
+  toggleBarInner: { width: 42, height: 2, borderRadius: 1, backgroundColor: colors.gold },
+  toggleItem: { flex: 1, height: 40, alignItems: "center", justifyContent: "center" },
   fields: { gap: 12, marginTop: 16 },
+  soon: { marginLeft: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, borderWidth: 1, borderColor: colors.border },
   sentRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   resend: { alignSelf: "center", paddingVertical: 6 },
   emailLinks: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
@@ -314,7 +308,7 @@ const useStyles = makeStyles((colors) => ({
   configNote: { color: colors.coralSoft, marginTop: 11 },
   divider: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16, marginBottom: 13 },
   dividerLine: { height: 1, flex: 1, backgroundColor: colors.divider },
-  googleButton: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 14, backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.borderStrong },
+  googleButton: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 12, backgroundColor: "rgba(235,226,250,0.04)", borderWidth: 1, borderColor: "rgba(235,226,250,0.12)" },
   googleBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.ivory, alignItems: "center", justifyContent: "center" },
   googleGlyph: { color: "#4263EB", fontFamily: "NunitoSans-Bold", fontSize: 15 },
   previewButton: { alignSelf: "center", marginTop: 13, flexDirection: "row", alignItems: "center", gap: 7, padding: 6 },

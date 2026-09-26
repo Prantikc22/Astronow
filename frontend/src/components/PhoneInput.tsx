@@ -1,78 +1,109 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FlatList, Modal, Pressable, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeIn, SlideInDown, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
+
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText } from "@/src/components/AppText";
 import { Icon } from "@/src/components/Icon";
 import { MotionPressable } from "@/src/components/MotionPressable";
+import { COUNTRIES, POPULAR, countryByIso, flagOf } from "@/src/content/countries";
 import { fonts, makeStyles, useTheme } from "@/src/theme";
 import { haptics } from "@/src/utils/haptics";
 
-export const COUNTRIES = [
-  { code: "91", iso: "IN", name: "India", flag: "🇮🇳" },
-  { code: "1", iso: "US", name: "United States / Canada", flag: "🇺🇸" },
-  { code: "44", iso: "GB", name: "United Kingdom", flag: "🇬🇧" },
-  { code: "971", iso: "AE", name: "United Arab Emirates", flag: "🇦🇪" },
-  { code: "65", iso: "SG", name: "Singapore", flag: "🇸🇬" },
-  { code: "61", iso: "AU", name: "Australia", flag: "🇦🇺" },
-  { code: "977", iso: "NP", name: "Nepal", flag: "🇳🇵" },
-  { code: "880", iso: "BD", name: "Bangladesh", flag: "🇧🇩" },
-  { code: "94", iso: "LK", name: "Sri Lanka", flag: "🇱🇰" },
-  { code: "974", iso: "QA", name: "Qatar", flag: "🇶🇦" },
-  { code: "966", iso: "SA", name: "Saudi Arabia", flag: "🇸🇦" },
-  { code: "60", iso: "MY", name: "Malaysia", flag: "🇲🇾" },
-];
-
-/** Country code picker + mobile number field. */
+/** One field: country (flag + code) and the number, with a searchable picker for every country. */
 export function PhoneInput({ country, onCountry, value, onChange, onSubmit, autoFocus }: {
-  country: string; onCountry: (code: string) => void; value: string; onChange: (v: string) => void; onSubmit?: () => void; autoFocus?: boolean;
+  /** ISO country code, e.g. "IN". */
+  country: string; onCountry: (iso: string) => void; value: string; onChange: (v: string) => void; onSubmit?: () => void; autoFocus?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
-  const selected = COUNTRIES.find((c) => c.code === country) || COUNTRIES[0];
+  const [focused, setFocused] = useState(false);
+  const selected = countryByIso(country);
   return (
-    <View style={styles.row}>
-      <MotionPressable onPress={() => setOpen(true)} style={styles.cc} accessibilityLabel={`Country code +${selected.code}`} testID="phone-country">
-        <AppText style={{ fontSize: 18 }}>{selected.flag}</AppText>
+    <View style={[styles.field, focused && { borderColor: "rgba(242,200,121,0.55)" }]}>
+      <MotionPressable onPress={() => setOpen(true)} style={styles.cc} accessibilityLabel={`Country: ${selected.name}, +${selected.code}`} testID="phone-country">
+        <AppText style={{ fontSize: 18 }}>{flagOf(selected.iso)}</AppText>
         <AppText variant="subtitle" style={{ fontSize: 16 }}>{`+${selected.code}`}</AppText>
-        <Icon name="chevron-down" size={14} color={colors.muted} />
+        <Icon name="chevron-down" size={13} color={colors.muted} />
       </MotionPressable>
+      <View style={styles.divider} />
       <TextInput
         value={value}
         onChangeText={(t) => onChange(t.replace(/[^\d]/g, "").slice(0, 14))}
-        placeholder={country === "91" ? "98765 43210" : "Mobile number"}
+        placeholder={selected.iso === "IN" ? "98765 43210" : "Mobile number"}
         placeholderTextColor={colors.muted}
         keyboardType="phone-pad"
         textContentType="telephoneNumber"
         autoComplete="tel"
         returnKeyType="done"
         onSubmitEditing={onSubmit}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         autoFocus={autoFocus}
         style={styles.input}
         testID="phone-number"
         accessibilityLabel="Mobile number"
       />
-      <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
-        <Animated.View entering={FadeIn.duration(180)} style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(5,4,14,0.7)" }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
-        </Animated.View>
-        <View style={{ flex: 1, justifyContent: "flex-end" }} pointerEvents="box-none">
-          <Animated.View entering={SlideInDown.duration(300)} style={styles.sheet}>
-            <AppText variant="title" style={{ marginBottom: 10 }}>Country</AppText>
-            <ScrollView style={{ maxHeight: 420 }}>
-              {COUNTRIES.map((c) => (
-                <MotionPressable key={c.code + c.iso} onPress={() => { onCountry(c.code); setOpen(false); }} style={[styles.option, c.code === country && styles.optionOn]} testID={`country-${c.iso}`}>
-                  <AppText style={{ fontSize: 20 }}>{c.flag}</AppText>
-                  <AppText variant="body" style={{ flex: 1 }}>{c.name}</AppText>
-                  <AppText variant="label" muted>{`+${c.code}`}</AppText>
-                </MotionPressable>
-              ))}
-            </ScrollView>
-          </Animated.View>
-        </View>
-      </Modal>
+      <CountryPicker visible={open} selected={selected.iso} onClose={() => setOpen(false)} onSelect={(iso) => { onCountry(iso); setOpen(false); }} />
     </View>
+  );
+}
+
+function CountryPicker({ visible, selected, onClose, onSelect }: { visible: boolean; selected: string; onClose: () => void; onSelect: (iso: string) => void }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [query, setQuery] = useState("");
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase().replace(/^\+/, "");
+    if (q) {
+      return COUNTRIES.filter((c) => c.name.toLowerCase().includes(q) || c.code.startsWith(q) || c.iso.toLowerCase() === q)
+        .map((c) => ({ type: "country" as const, c }));
+    }
+    const popular = POPULAR.map((iso) => COUNTRIES.find((c) => c.iso === iso)!).filter(Boolean);
+    return [
+      { type: "header" as const, label: "Popular" }, ...popular.map((c) => ({ type: "country" as const, c })),
+      { type: "header" as const, label: "All countries" }, ...COUNTRIES.map((c) => ({ type: "country" as const, c })),
+    ];
+  }, [query]);
+  if (!visible) return null;
+  return (
+    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+      <Animated.View entering={FadeIn.duration(180)} style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(5,4,14,0.7)" }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+      </Animated.View>
+      <View style={{ flex: 1, justifyContent: "flex-end" }} pointerEvents="box-none">
+        <Animated.View entering={SlideInDown.duration(300)} style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
+          <View style={styles.handle} />
+          <View style={styles.search}>
+            <Icon name="search" size={16} color={colors.muted} />
+            <TextInput value={query} onChangeText={setQuery} placeholder="Search country or code" placeholderTextColor={colors.muted}
+              style={styles.searchInput} autoCorrect={false} testID="country-search" />
+            {query ? <MotionPressable onPress={() => setQuery("")} hitSlop={8}><Icon name="x" size={15} color={colors.muted} /></MotionPressable> : null}
+          </View>
+          <FlatList
+            data={rows}
+            keyExtractor={(row, i) => (row.type === "header" ? `h-${row.label}` : `${row.c.iso}-${i}`)}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={20}
+            style={{ maxHeight: 460 }}
+            renderItem={({ item }) => item.type === "header" ? (
+              <AppText variant="label" muted style={styles.sectionLabel}>{item.label.toUpperCase()}</AppText>
+            ) : (
+              <MotionPressable onPress={() => onSelect(item.c.iso)} style={[styles.option, item.c.iso === selected && styles.optionOn]} testID={`country-${item.c.iso}`}>
+                <AppText style={{ fontSize: 20 }}>{flagOf(item.c.iso)}</AppText>
+                <AppText variant="body" style={{ flex: 1 }}>{item.c.name}</AppText>
+                <AppText variant="label" muted>{`+${item.c.code}`}</AppText>
+                {item.c.iso === selected ? <Icon name="check" size={15} color={colors.goldSoft} /> : null}
+              </MotionPressable>
+            )}
+            ListEmptyComponent={<AppText variant="caption" muted center style={{ padding: 20 }}>No matching country</AppText>}
+          />
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
@@ -126,11 +157,16 @@ export function OtpInput({ length = 6, value, onChange, onComplete, error }: {
 }
 
 const useStyles = makeStyles((colors) => ({
-  row: { flexDirection: "row", gap: 10 },
-  cc: { flexDirection: "row", alignItems: "center", gap: 6, height: 54, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceTertiary },
-  input: { flex: 1, minWidth: 0, height: 54, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceTertiary, color: colors.onSurface, fontFamily: fonts.medium, fontSize: 18, letterSpacing: 1 },
-  sheet: { padding: 20, paddingBottom: 36, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "#15132B", borderWidth: 1, borderColor: colors.borderStrong },
-  option: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10 },
+  field: { flexDirection: "row", alignItems: "center", height: 52, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(235,226,250,0.05)" },
+  cc: { flexDirection: "row", alignItems: "center", gap: 6, height: "100%", paddingLeft: 14, paddingRight: 10 },
+  divider: { width: 1, height: 24, backgroundColor: colors.border },
+  input: { flex: 1, minWidth: 0, height: "100%", paddingHorizontal: 14, color: colors.onSurface, fontFamily: fonts.medium, fontSize: 17, letterSpacing: 0.8 },
+  sheet: { paddingHorizontal: 16, paddingTop: 10, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "#15132B", borderWidth: 1, borderColor: colors.borderStrong },
+  handle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(235,226,250,0.3)", marginBottom: 12 },
+  search: { flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingHorizontal: 12, borderRadius: 10, backgroundColor: "rgba(235,226,250,0.06)", marginBottom: 6 },
+  searchInput: { flex: 1, minWidth: 0, height: "100%", color: colors.onSurface, fontFamily: fonts.body, fontSize: 15 },
+  sectionLabel: { paddingHorizontal: 10, paddingTop: 12, paddingBottom: 4, letterSpacing: 1 },
+  option: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 10, borderRadius: 10 },
   optionOn: { backgroundColor: "rgba(242,200,121,0.1)" },
   otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   box: { flex: 1, height: 58, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surfaceTertiary, alignItems: "center", justifyContent: "center" },

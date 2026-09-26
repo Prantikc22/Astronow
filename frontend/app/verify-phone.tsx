@@ -13,6 +13,7 @@ import { CosmicBackground } from "@/src/components/CosmicBackground";
 import { Icon } from "@/src/components/Icon";
 import { MotionPressable } from "@/src/components/MotionPressable";
 import { OtpInput, PhoneInput } from "@/src/components/PhoneInput";
+import { countryByIso, defaultCountryIso } from "@/src/content/countries";
 import { rise } from "@/src/motion";
 import { useAuth } from "@/src/store/auth";
 import { makeStyles, radii, useTheme } from "@/src/theme";
@@ -27,7 +28,8 @@ export default function VerifyPhone() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { sendPhoneCode, linkPhone, logout, user } = useAuth();
-  const [country, setCountry] = useState("91");
+  const [country, setCountry] = useState(defaultCountryIso);
+  const dial = countryByIso(country).code;
   const [mobile, setMobile] = useState("");
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState("");
@@ -48,7 +50,7 @@ export default function VerifyPhone() {
     setTaken(false);
     setBusy(true);
     try {
-      const r = await sendPhoneCode(country, mobile);
+      const r = await sendPhoneCode(dial, mobile);
       setSent(true);
       setCode("");
       setResendIn(r.resend_after);
@@ -65,7 +67,7 @@ export default function VerifyPhone() {
     setError(null);
     setCodeError(false);
     try {
-      await linkPhone(country, mobile, value);
+      await linkPhone(dial, mobile, value);
       router.replace("/");
     } catch (e: any) {
       if (e instanceof ApiError && e.status === 409) {
@@ -107,7 +109,7 @@ export default function VerifyPhone() {
             ) : (
               <Animated.View entering={FadeInDown.duration(260)}>
                 <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-                  <AppText variant="caption" muted style={{ flex: 1 }}>{`Enter the code sent to +${country} ${mobile}`}</AppText>
+                  <AppText variant="caption" muted style={{ flex: 1 }}>{`Enter the code sent to +${dial} ${mobile}`}</AppText>
                   <MotionPressable onPress={() => setSent(false)} hitSlop={8}><AppText variant="caption" style={{ color: colors.violet }}>Change</AppText></MotionPressable>
                 </View>
                 <OtpInput value={code} onChange={(v) => { setCode(v); setCodeError(false); }} onComplete={verify} error={codeError} />

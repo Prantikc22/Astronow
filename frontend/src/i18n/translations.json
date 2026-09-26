@@ -1293,7 +1293,17 @@
     "Sign out and use my number": "Sign out and use my number",
     "Signed in as ${user.email} · Sign out": "Signed in as ${user.email} · Sign out",
     "Mobile number": "Mobile number",
-    "Country": "Country"
+    "Country": "Country",
+    "Welcome to AstroNow": "Welcome to AstroNow",
+    "Sign in or create an account in seconds.": "Sign in or create an account in seconds.",
+    "We'll text you a 6-digit code.": "We'll text you a 6-digit code.",
+    "Enter the code sent to +${dial} ${mobile}": "Enter the code sent to +${dial} ${mobile}",
+    "Soon": "Soon",
+    "Private by design. By continuing you agree to our Terms and Privacy Policy.": "Private by design. By continuing you agree to our Terms and Privacy Policy.",
+    "Popular": "Popular",
+    "All countries": "All countries",
+    "Search country or code": "Search country or code",
+    "No matching country": "No matching country"
   },
   "hi": {
     "·  Sub-period: ${data.current_antardasha.lord}": "· उप-काल: ${data.current_antardasha.lord}",
@@ -2589,7 +2599,17 @@
     "Sign out and use my number": "साइन आउट करें और अपने नंबर का उपयोग करें",
     "Signed in as ${user.email} · Sign out": "${user.email} के रूप में साइन इन हैं · साइन आउट करें",
     "Mobile number": "मोबाइल नंबर",
-    "Country": "देश"
+    "Country": "देश",
+    "Welcome to AstroNow": "AstroNow में आपका स्वागत है",
+    "Sign in or create an account in seconds.": "कुछ ही सेकंड में साइन इन करें या खाता बनाएं।",
+    "We'll text you a 6-digit code.": "हम आपको 6 अंकों का कोड भेजेंगे।",
+    "Enter the code sent to +${dial} ${mobile}": "+${dial} ${mobile} पर भेजा गया कोड दर्ज करें",
+    "Soon": "जल्द ही",
+    "Private by design. By continuing you agree to our Terms and Privacy Policy.": "डिज़ाइन से ही निजी। आगे बढ़कर आप हमारे नियमों और गोपनीयता नीति से सहमत होते हैं।",
+    "Popular": "लोकप्रिय",
+    "All countries": "सभी देश",
+    "Search country or code": "देश या कोड खोजें",
+    "No matching country": "कोई मेल खाता देश नहीं"
   },
   "bn": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  উপ-পর্ব: ${data.current_antardasha.lord}",
@@ -3885,7 +3905,17 @@
     "Sign out and use my number": "সাইন আউট করুন এবং আমার নম্বর ব্যবহার করুন",
     "Signed in as ${user.email} · Sign out": "${user.email} হিসেবে সাইন ইন করা আছে · সাইন আউট করুন",
     "Mobile number": "মোবাইল নম্বর",
-    "Country": "দেশ"
+    "Country": "দেশ",
+    "Welcome to AstroNow": "AstroNow-তে স্বাগতম",
+    "Sign in or create an account in seconds.": "সাইন ইন করুন বা কয়েক সেকেন্ডে অ্যাকাউন্ট তৈরি করুন।",
+    "We'll text you a 6-digit code.": "আমরা আপনাকে একটি ৬-সংখ্যার কোড টেক্সট করব।",
+    "Enter the code sent to +${dial} ${mobile}": "+${dial} ${mobile}-এ পাঠানো কোডটি লিখুন",
+    "Soon": "শীঘ্রই",
+    "Private by design. By continuing you agree to our Terms and Privacy Policy.": "ডিজাইনগতভাবেই ব্যক্তিগত। এগিয়ে যাওয়ার মাধ্যমে আপনি আমাদের শর্তাবলী এবং গোপনীয়তা নীতিতে সম্মতি দিচ্ছেন।",
+    "Popular": "জনপ্রিয়",
+    "All countries": "সমস্ত দেশ",
+    "Search country or code": "দেশ বা কোড খুঁজুন",
+    "No matching country": "কোনো মেলানো দেশ পাওয়া যায়নি"
   },
   "ta": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  துணை காலம்: ${data.current_antardasha.lord}",
@@ -5181,7 +5211,17 @@
     "Sign out and use my number": "வெளியேறி எனது எண்ணைப் பயன்படுத்தவும்",
     "Signed in as ${user.email} · Sign out": "${user.email} ஆக உள்நுழைந்துள்ளீர்கள் · வெளியேறு",
     "Mobile number": "மொபைல் எண்",
-    "Country": "நாடு"
+    "Country": "நாடு",
+    "Welcome to AstroNow": "AstroNow-க்கு நல்வரவு",
+    "Sign in or create an account in seconds.": "சில நொடிகளில் உள்நுழையவும் அல்லது கணக்கை உருவாக்கவும்.",
+    "We'll text you a 6-digit code.": "உங்களுக்கு 6 இலக்கக் குறியீட்டை குறுஞ்செய்தியாக அனுப்புவோம்.",
+    "Enter the code sent to +${dial} ${mobile}": "+${dial} ${mobile}-க்கு அனுப்பப்பட்ட குறியீட்டை உள்ளிடவும்",
+    "Soon": "விரைவில்",
+    "Private by design. By continuing you agree to our Terms and Privacy Policy.": "தனியுரிமைக்கு முன்னுரிமை. தொடர்வதன் மூலம் எங்கள் விதிமுறைகள் மற்றும் தனியுரிமைக் கொள்கையை ஏற்கிறீர்கள்.",
+    "Popular": "பிரபலமானவை",
+    "All countries": "அனைத்து நாடுகள்",
+    "Search country or code": "நாடு அல்லது குறியீட்டைத் தேடவும்",
+    "No matching country": "பொருந்தும் நாடு இல்லை"
   },
   "te": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  ఉప-కాలం: ${data.current_antardasha.lord}",
@@ -6477,7 +6517,17 @@
     "Sign out and use my number": "సైన్ అవుట్ చేసి నా నంబర్‌ను ఉపయోగించండి",
     "Signed in as ${user.email} · Sign out": "${user.email} గా సైన్ ఇన్ అయ్యారు · సైన్ అవుట్",
     "Mobile number": "మొబైల్ నంబర్",
-    "Country": "దేశం"
+    "Country": "దేశం",
+    "Welcome to AstroNow": "AstroNow కు స్వాగతం",
+    "Sign in or create an account in seconds.": "కొద్ది సెకన్లలో సైన్ ఇన్ అవ్వండి లేదా ఖాతాను సృష్టించండి.",
+    "We'll text you a 6-digit code.": "మేము మీకు 6 అంకెల కోడ్‌ను మెసేజ్ చేస్తాము.",
+    "Enter the code sent to +${dial} ${mobile}": "+${dial} ${mobile} కు పంపిన కోడ్‌ను నమోదు చేయండి",
+    "Soon": "త్వరలో",
+    "Private by design. By continuing you agree to our Terms and Privacy Policy.": "సహజంగానే గోప్యమైనది. కొనసాగడం ద్వారా మీరు మా నిబంధనలు మరియు గోప్యతా విధానాన్ని అంగీకరిస్తున్నారు.",
+    "Popular": "ప్రసిద్ధమైనవి",
+    "All countries": "అన్ని దేశాలు",
+    "Search country or code": "దేశం లేదా కోడ్ కోసం శోధించండి",
+    "No matching country": "సరిపోలే దేశం ఏదీ లేదు"
   },
   "es": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  Sub-período: ${data.current_antardasha.lord}",
@@ -7773,7 +7823,17 @@
     "Sign out and use my number": "Cerrar sesión y usar mi número",
     "Signed in as ${user.email} · Sign out": "Sesión iniciada como ${user.email} · Cerrar sesión",
     "Mobile number": "Número de móvil",
-    "Country": "País"
+    "Country": "País",
+    "Welcome to AstroNow": "Te damos la bienvenida a AstroNow",
+    "Sign in or create an account in seconds.": "Inicia sesión o crea una cuenta en segundos.",
+    "We'll text you a 6-digit code.": "Te enviaremos un código de 6 dígitos por mensaje de texto.",
+    "Enter the code sent to +${dial} ${mobile}": "Ingresa el código enviado al +${dial} ${mobile}",
+    "Soon": "Próximamente",
+    "Private by design. By continuing you agree to our Terms and Privacy Policy.": "Privado por diseño. Al continuar, aceptas nuestros Términos y la Política de privacidad.",
+    "Popular": "Populares",
+    "All countries": "Todos los países",
+    "Search country or code": "Buscar país o código",
+    "No matching country": "No se encontró ningún país"
   },
   "fr": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  Sous-période : ${data.current_antardasha.lord}",
@@ -9069,7 +9129,17 @@
     "Sign out and use my number": "Se déconnecter et utiliser mon numéro",
     "Signed in as ${user.email} · Sign out": "Connecté en tant que ${user.email} · Se déconnecter",
     "Mobile number": "Numéro de mobile",
-    "Country": "Pays"
+    "Country": "Pays",
+    "Welcome to AstroNow": "Bienvenue sur AstroNow",
+    "Sign in or create an account in seconds.": "Connectez-vous ou créez un compte en quelques secondes.",
+    "We'll text you a 6-digit code.": "Nous vous enverrons un code à 6 chiffres par SMS.",
+    "Enter the code sent to +${dial} ${mobile}": "Saisissez le code envoyé au +${dial} ${mobile}",
+    "Soon": "Bientôt",
+    "Private by design. By continuing you agree to our Terms and Privacy Policy.": "Confidentialité dès la conception. En continuant, vous acceptez nos Conditions et notre Politique de confidentialité.",
+    "Popular": "Populaires",
+    "All countries": "Tous les pays",
+    "Search country or code": "Rechercher un pays ou un code",
+    "No matching country": "Aucun pays correspondant"
   },
   "de": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  Teilzeitraum: ${data.current_antardasha.lord}",
@@ -10365,7 +10435,17 @@
     "Sign out and use my number": "Abmelden und meine Nummer verwenden",
     "Signed in as ${user.email} · Sign out": "Angemeldet als ${user.email} · Abmelden",
     "Mobile number": "Mobilnummer",
-    "Country": "Land"
+    "Country": "Land",
+    "Welcome to AstroNow": "Willkommen bei AstroNow",
+    "Sign in or create an account in seconds.": "In Sekundenschnelle anmelden oder Konto erstellen.",
+    "We'll text you a 6-digit code.": "Wir senden dir einen 6-stelligen Code per SMS.",
+    "Enter the code sent to +${dial} ${mobile}": "Gib den an +${dial} ${mobile} gesendeten Code ein",
+    "Soon": "Demnächst",
+    "Private by design. By continuing you agree to our Terms and Privacy Policy.": "Von Grund auf privat. Indem du fortfährst, stimmst du unseren Nutzungsbedingungen und der Datenschutzrichtlinie zu.",
+    "Popular": "Beliebt",
+    "All countries": "Alle Länder",
+    "Search country or code": "Land oder Vorwahl suchen",
+    "No matching country": "Kein passendes Land"
   },
   "pt": {
     "·  Sub-period: ${data.current_antardasha.lord}": "· Sub-período: ${data.current_antardasha.lord}",
@@ -11661,6 +11741,16 @@
     "Sign out and use my number": "Sair e usar meu número",
     "Signed in as ${user.email} · Sign out": "Conectado como ${user.email} · Sair",
     "Mobile number": "Número de celular",
-    "Country": "País"
+    "Country": "País",
+    "Welcome to AstroNow": "Boas-vindas ao AstroNow",
+    "Sign in or create an account in seconds.": "Entre ou crie uma conta em segundos.",
+    "We'll text you a 6-digit code.": "Enviaremos um código de 6 dígitos por SMS.",
+    "Enter the code sent to +${dial} ${mobile}": "Insira o código enviado para +${dial} ${mobile}",
+    "Soon": "Em breve",
+    "Private by design. By continuing you agree to our Terms and Privacy Policy.": "Privacidade por design. Ao continuar, você concorda com nossos Termos e Política de Privacidade.",
+    "Popular": "Populares",
+    "All countries": "Todos os países",
+    "Search country or code": "Buscar país ou código",
+    "No matching country": "Nenhum país encontrado"
   }
 }
