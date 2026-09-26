@@ -10,6 +10,8 @@ import { Icon } from "@/src/components/Icon";
 import { MotionPressable } from "@/src/components/MotionPressable";
 import { ErrorState, Screen } from "@/src/components/Screen";
 import { Skeleton } from "@/src/components/Skeleton";
+import { readingLocale } from "@/src/content/daily-reading";
+import { useI18n } from "@/src/i18n";
 import { rise } from "@/src/motion";
 import { enableNotifications, scheduleMoonDays } from "@/src/services/notifications";
 import { makeStyles, radii, useTheme } from "@/src/theme";
@@ -39,6 +41,8 @@ const WEEK = ["S", "M", "T", "W", "T", "F", "S"];
 export default function MoonCalendar() {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { language } = useI18n();
+  const locale = readingLocale(language);
   const today = new Date();
   const [cursor, setCursor] = useState({ y: today.getFullYear(), m: today.getMonth() + 1 });
   const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -53,7 +57,7 @@ export default function MoonCalendar() {
   const lead = new Date(cursor.y, cursor.m - 1, 1).getDay();
   const sel = days.find((d) => d.date === selected) || days[0];
   const events = days.filter((d) => d.events.length);
-  const monthLabel = new Date(cursor.y, cursor.m - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  const monthLabel = new Date(cursor.y, cursor.m - 1, 1).toLocaleDateString(locale, { month: "long", year: "numeric" });
 
   const shift = (delta: number) => {
     haptics.selection();
@@ -103,7 +107,7 @@ export default function MoonCalendar() {
         <Animated.View key={sel.date} entering={FadeIn.duration(220)} style={styles.detail}>
           <MoonGlyph size={64} illumination={sel.illumination} waxing={sel.waxing} />
           <View style={{ flex: 1 }}>
-            <AppText variant="caption" muted>{new Date(sel.date + "T12:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</AppText>
+            <AppText variant="caption" muted>{new Date(sel.date + "T12:00:00").toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}</AppText>
             <AppText variant="title" style={{ fontSize: 20, marginTop: 2 }}>{sel.tithi}</AppText>
             <AppText variant="caption" style={{ color: colors.onSurface }}>{sel.paksha === "Shukla" ? "Waxing · Shukla paksha" : "Waning · Krishna paksha"}{sel.nakshatra ? ` · ${sel.nakshatra}` : ""}</AppText>
             {sel.events.map((e) => <View key={e} style={styles.eventTag}><AppText variant="caption" style={{ color: colors.ink, fontSize: 11 }}>{e}</AppText></View>)}
@@ -121,7 +125,7 @@ export default function MoonCalendar() {
                   <MoonGlyph size={30} illumination={d.illumination} waxing={d.waxing} />
                   <View style={{ flex: 1 }}>
                     <AppText variant="subtitle" style={{ fontSize: 15 }}>{d.events.join(" · ")}</AppText>
-                    <AppText variant="caption" muted>{new Date(d.date + "T12:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })} · {d.tithi}</AppText>
+                    <AppText variant="caption" muted>{new Date(d.date + "T12:00:00").toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })} · {d.tithi}</AppText>
                   </View>
                 </MotionPressable>
               </Animated.View>

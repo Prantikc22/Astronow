@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { TextInput, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { AppText } from "@/src/components/AppText";
 import { Icon } from "@/src/components/Icon";
@@ -47,7 +47,7 @@ export function AskBar() {
     return () => clearTimeout(timer);
   }, [topic, focused, value, t]);
 
-  useEffect(() => { send.value = withSpring(ready ? 1 : 0, { damping: 14, stiffness: 240 }); }, [ready, send]);
+  useEffect(() => { send.value = withTiming(ready ? 1 : 0, { duration: 200 }); }, [ready, send]);
   const sendStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 0.9 + send.value * 0.1 }, { rotate: `${-45 + send.value * 45}deg` }],
     backgroundColor: send.value > 0.5 ? colors.gold : "rgba(23,19,38,0.08)",

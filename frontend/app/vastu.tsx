@@ -259,7 +259,7 @@ export default function VastuScreen() {
                 <MotionPressable onPress={deleteSelected} style={styles.deleteBtn} haptic="none" testID="vastu-delete-room"><Icon name="x" size={14} color={colors.coralSoft} /><AppText variant="caption" style={{ color: colors.coralSoft }}>Remove</AppText></MotionPressable>
               </Animated.View>
             ) : (
-              <AppText variant="caption" muted center style={{ paddingBottom: 12 }}>Gold lines mark the nine Vastu zones · North {north}°</AppText>
+              <AppText variant="caption" muted center style={{ paddingBottom: 12 }}>{`Gold lines mark the nine Vastu zones · North ${north}°`}</AppText>
             )}
           </View>
 

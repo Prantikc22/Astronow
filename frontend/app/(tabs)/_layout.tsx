@@ -38,7 +38,7 @@ function TabIcon({ icon, focused, label }: { icon: FeatherName; focused: boolean
   const { colors } = useTheme();
   const p = useSharedValue(focused ? 1 : 0);
   useEffect(() => {
-    p.value = focused ? withSequence(withTiming(1.18, { duration: 120 }), withSpring(1, springs.bouncy)) : withTiming(0, { duration: 180 });
+    p.value = focused ? withSequence(withTiming(1.06, { duration: 140 }), withTiming(1, { duration: 200 })) : withTiming(0, { duration: 180 });
   }, [focused, p]);
   const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: focused ? p.value : 1 }, { translateY: focused ? -1 : 0 }] }));
   return (

@@ -15,6 +15,7 @@ import { REPORTS, reportDisplay, reportPrice, type ReportDefinition } from "@/sr
 import { pop, rise } from "@/src/motion";
 import { useAuth } from "@/src/store/auth";
 import { makeStyles, radii, useTheme } from "@/src/theme";
+import { useColumnWidth } from "@/src/utils/layout";
 
 const TOOLS: { label: string; sub: string; icon: FeatherName; route: string; tint: [string, string] }[] = [
   { label: "Birth chart", sub: "Kundli", icon: "target", route: "/chart", tint: ["#F7DDA6", "#E3A866"] },
@@ -44,6 +45,7 @@ export default function Reports() {
   const premiumReports = REPORTS.filter((report) => report.access === "addon");
   const plusCount = REPORTS.filter((report) => report.access === "plus").length;
   const openReport = (report: ReportDefinition) => router.push((report.route || `/report/${report.slug}`) as any);
+  const tileWidth = useColumnWidth(4, 10);
   let tileIndex = 0;
 
   return <Screen contentStyle={{ paddingBottom: 130 }}>
@@ -57,7 +59,7 @@ export default function Reports() {
         <MotionPressable onPress={() => router.push("/paywall")} style={styles.unlock} haptic="medium" testID="reports-plus">
           <View style={styles.unlockRing}><AppText variant="label" style={{ color: colors.goldSoft }}>{plusCount}</AppText></View>
           <View style={{ flex: 1 }}>
-            <AppText variant="subtitle" style={{ fontSize: 16 }}>Unlock all {plusCount} reports</AppText>
+            <AppText variant="subtitle" style={{ fontSize: 16 }}>{`Unlock all ${plusCount} reports`}</AppText>
             <AppText variant="caption" muted>Included with AstroNow Plus</AppText>
           </View>
           <View style={styles.unlockBtn}><AppText variant="label" style={{ color: colors.ink }}>See Plus</AppText><Shine every={3000} opacity={0.5} /></View>
@@ -104,12 +106,12 @@ export default function Reports() {
             if (!report) return null;
             const i = tileIndex++;
             return (
-              <Animated.View key={slug} entering={pop(i % 8, 40)} style={styles.tileCell}>
+              <Animated.View key={slug} entering={pop(i % 8, 40)} style={[styles.tileCell, { width: tileWidth }]}>
                 <MotionPressable onPress={() => openReport(report)} style={styles.tile} testID={`report-${slug}`} pressScale={0.95}>
                   <Icon name={report.icon} size={30} color={colors.coralSoft} weight="fill" />
                   {!entitlement.premium ? <View style={styles.lock}><Icon name="lock" size={11} color={colors.coralSoft} weight="bold" /></View> : null}
                 </MotionPressable>
-                <AppText variant="caption" center numberOfLines={2} style={{ marginTop: 7, color: colors.onSurface, fontSize: 13, lineHeight: 17 }}>{report.title}</AppText>
+                <AppText variant="caption" center numberOfLines={tileWidth < 72 ? 3 : 2} style={{ marginTop: 7, color: colors.onSurface, fontSize: tileWidth < 72 ? 11.5 : 13, lineHeight: tileWidth < 72 ? 15 : 17 }}>{report.title}</AppText>
               </Animated.View>
             );
           })}
@@ -195,7 +197,7 @@ const useStyles = makeStyles((colors) => ({
   ornLine: { flex: 1, height: 1 },
   ornPill: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 10, backgroundColor: "#2E2B4F" },
   tiles: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", columnGap: 10, rowGap: 16, marginTop: 16 },
-  tileCell: { width: "22.5%", alignItems: "center" },
+  tileCell: { alignItems: "center" },
   tile: { width: "100%", aspectRatio: 1, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(33,31,59,0.95)", borderWidth: 1, borderColor: colors.border },
   lock: { position: "absolute", right: 6, bottom: 6, width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(11,11,26,0.7)" },
   premiumCard: { flexDirection: "row", alignItems: "center", gap: 13, padding: 16, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.borderStrong },

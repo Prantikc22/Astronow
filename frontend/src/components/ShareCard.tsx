@@ -2,7 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Sharing from "expo-sharing";
 import React, { useRef, useState } from "react";
 import { Modal, Platform, Pressable, Share, StyleSheet, View } from "react-native";
-import Animated, { FadeIn, SlideInDown } from "react-native-reanimated";
+import Animated, { Easing, FadeIn, SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { captureRef } from "react-native-view-shot";
 
@@ -11,6 +11,7 @@ import { BrandMark } from "@/src/components/BrandMark";
 import { Button } from "@/src/components/Button";
 import { ScoreRing } from "@/src/components/ScoreRing";
 import type { DayRuler } from "@/src/content/day-insights";
+import { translateText, useI18n } from "@/src/i18n";
 import { fonts, makeStyles } from "@/src/theme";
 import { haptics } from "@/src/utils/haptics";
 
@@ -18,6 +19,7 @@ export type ShareData = { name: string; date: string; score: number | null; titl
 
 function Card({ d }: { d: ShareData }) {
   const styles = useStyles();
+  const { language } = useI18n();
   return (
     <LinearGradient colors={["#2A1640", "#17132E", "#0D0B1F"]} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 1 }} style={styles.card}>
       <View style={styles.glow} />
@@ -28,7 +30,7 @@ function Card({ d }: { d: ShareData }) {
         </View>
         <AppText variant="caption" style={{ color: "rgba(248,242,232,0.7)" }}>{d.date}</AppText>
       </View>
-      <AppText variant="caption" center style={{ color: "#F0A0BD", marginTop: 22, letterSpacing: 1.4 }}>{d.name.toUpperCase()}&apos;S DAY</AppText>
+      <AppText variant="caption" center style={{ color: "#F0A0BD", marginTop: 22, letterSpacing: 1.4 }}>{`${d.name.toUpperCase()}'S DAY`}</AppText>
       <View style={{ alignItems: "center", marginTop: 14 }}>
         <ScoreRing size={132} stroke={9} value={(d.score ?? 0) / 100}>
           <AppText style={styles.score}>{d.score != null ? `${d.score}%` : "—"}</AppText>
@@ -38,7 +40,7 @@ function Card({ d }: { d: ShareData }) {
       <AppText variant="caption" center style={{ color: "#F0A0BD", marginTop: 6 }}>{d.tone}</AppText>
       <View style={styles.pill}>
         <View style={[styles.dot, { backgroundColor: d.ruler.color }]} />
-        <AppText variant="body" style={{ color: "#F8F2E8" }}>Wear {d.ruler.colorName}</AppText>
+        <AppText variant="body" style={{ color: "#F8F2E8" }}>{`Wear ${translateText(d.ruler.colorName, language)}`}</AppText>
         <View style={styles.sep} />
         <AppText variant="body" style={{ color: "rgba(248,242,232,0.7)" }}>Lucky</AppText>
         <AppText style={styles.lucky}>{d.ruler.number}</AppText>
@@ -82,7 +84,7 @@ export function ShareSheet({ visible, data, onClose }: { visible: boolean; data:
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
       </Animated.View>
       <View style={[styles.anchor, { paddingBottom: insets.bottom + 16 }]} pointerEvents="box-none">
-        <Animated.View entering={SlideInDown.springify().damping(18)} style={{ alignItems: "center", width: "100%" }}>
+        <Animated.View entering={SlideInDown.duration(340).easing(Easing.bezier(0.22, 1, 0.36, 1))} style={{ alignItems: "center", width: "100%" }}>
           <View ref={ref} collapsable={false} style={{ borderRadius: 18, overflow: "hidden" }}>
             <Card d={data} />
           </View>

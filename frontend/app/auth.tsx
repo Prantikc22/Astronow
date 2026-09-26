@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
-import Animated, { FadeIn, FadeInDown, FadeInUp, LinearTransition, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated, { Easing, FadeIn, FadeInDown, FadeInUp, LinearTransition, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -140,7 +140,7 @@ export default function AuthScreen() {
           ))}
         </Animated.View>
 
-        <Animated.View entering={FadeInUp.delay(enterAt + 600).springify().damping(18)} style={styles.sheet}>
+        <Animated.View entering={FadeInUp.delay(enterAt + 600).duration(460).easing(Easing.bezier(0.22, 1, 0.36, 1))} style={styles.sheet}>
           <AppText variant="title" center>{mode === "signup" ? "Create your free account" : "Welcome back"}</AppText>
           <AppText variant="caption" muted center style={{ marginTop: 4, marginBottom: 16 }}>
             {mode === "signup" ? "Your birth chart in under a minute. No card needed." : "Your chart and conversations are waiting."}
@@ -148,7 +148,7 @@ export default function AuthScreen() {
 
           <AuthToggle mode={mode} onChange={(item) => { setMode(item); setError(null); setNotice(null); }} />
 
-          <Animated.View key={mode} entering={FadeInDown.duration(280)} layout={LinearTransition.springify().damping(18)} style={styles.fields}>
+          <Animated.View key={mode} entering={FadeInDown.duration(280)} layout={LinearTransition.duration(220)} style={styles.fields}>
             {mode === "signup" ? <TextField label="First name" value={firstName} onChangeText={setFirstName}
               placeholder="What should Tara call you?" autoCapitalize="words" autoComplete="name" testID="auth-firstname" /> : null}
             <TextField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com"
@@ -161,7 +161,7 @@ export default function AuthScreen() {
           {mode === "signin" ? <MotionPressable onPress={resetPassword} style={styles.forgot} testID="auth-forgot">
             <AppText variant="caption" style={{ color: colors.violet }}>Forgot password?</AppText>
           </MotionPressable> : null}
-          {error ? <Animated.View entering={FadeInDown.duration(240).springify()} style={styles.errorBox}><Icon name="alert-circle" size={15} color={colors.coralSoft} /><AppText variant="caption" style={{ color: colors.coralSoft, flex: 1 }} testID="auth-error">{error}</AppText></Animated.View> : null}
+          {error ? <Animated.View entering={FadeInDown.duration(240)} style={styles.errorBox}><Icon name="alert-circle" size={15} color={colors.coralSoft} /><AppText variant="caption" style={{ color: colors.coralSoft, flex: 1 }} testID="auth-error">{error}</AppText></Animated.View> : null}
           {notice ? <Animated.View entering={FadeInDown.duration(240)} style={styles.noticeBox}><Icon name="check-circle" size={15} color={colors.goldSoft} /><AppText variant="caption" style={{ color: colors.goldSoft, flex: 1 }} testID="auth-notice">{notice}</AppText></Animated.View> : null}
           {!authConfigured ? <AppText variant="caption" center style={styles.configNote}>This local build still needs its public Supabase URL and publishable key.</AppText> : null}
 

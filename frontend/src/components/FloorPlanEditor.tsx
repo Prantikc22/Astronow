@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { GestureResponderEvent, View } from "react-native";
-import Animated, { FadeIn, ZoomIn, useSharedValue } from "react-native-reanimated";
+import Animated, { FadeIn, useSharedValue } from "react-native-reanimated";
 
 import { AppText } from "@/src/components/AppText";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -144,7 +144,7 @@ export function FloorPlanEditor({ rooms, types, activeType, north, selectedId, o
             const selected = room.id === selectedId;
             const small = room.width < CELL * 2 || room.height < CELL * 2;
             return (
-              <Animated.View key={room.id} pointerEvents="none" entering={ZoomIn.springify().damping(14)}
+              <Animated.View key={room.id} pointerEvents="none" entering={FadeIn.duration(180)}
                 style={[styles.room, {
                   left: `${room.x + (m?.dx || 0)}%`, top: `${room.y + (m?.dy || 0)}%`, width: `${room.width}%`, height: `${room.height}%`,
                   backgroundColor: t.color + (selected ? "F2" : "CC"), borderColor: selected ? colors.goldSoft : t.color,

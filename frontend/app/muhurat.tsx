@@ -12,8 +12,11 @@ import { ScoreRing } from "@/src/components/ScoreRing";
 import { ErrorState, Screen } from "@/src/components/Screen";
 import { Skeleton } from "@/src/components/Skeleton";
 import { UpsellSheet } from "@/src/components/UpsellSheet";
+import { readingLocale } from "@/src/content/daily-reading";
+import { useI18n } from "@/src/i18n";
 import { pop, rise } from "@/src/motion";
 import { makeStyles, radii, useTheme } from "@/src/theme";
+import { useColumnWidth } from "@/src/utils/layout";
 
 const ACTIVITIES: { id: string; label: string; icon: FeatherName }[] = [
   { id: "travel", label: "Travel", icon: "navigation" },
@@ -24,13 +27,16 @@ const ACTIVITIES: { id: string; label: string; icon: FeatherName }[] = [
   { id: "engagement", label: "Engagement", icon: "heart" },
 ];
 
-const fmt = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
 
 export default function Muhurat() {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { language } = useI18n();
+  const locale = readingLocale(language);
+  const fmt = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
   const [activity, setActivity] = useState("travel");
   const [upsell, setUpsell] = useState(false);
+  const cellWidth = useColumnWidth(3, 8);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["muhurat", activity], queryFn: () => api.get(`/muhurat?activity=${activity}&days=21`), staleTime: 6 * 60 * 60 * 1000,
   });
@@ -45,7 +51,7 @@ export default function Muhurat() {
         {ACTIVITIES.map((a, i) => {
           const on = a.id === activity;
           return (
-            <Animated.View key={a.id} entering={pop(i, 40)} style={styles.cellWrap}>
+            <Animated.View key={a.id} entering={pop(i, 40)} style={[styles.cellWrap, { width: cellWidth }]}>
               <MotionPressable onPress={() => setActivity(a.id)} style={[styles.cell, on && styles.cellOn]} testID={`muhurat-${a.id}`} accessibilityState={{ selected: on }}>
                 <Icon name={a.icon} size={20} color={on ? colors.goldSoft : colors.muted} weight={on ? "fill" : "regular"} />
                 <AppText variant="caption" center numberOfLines={2} style={{ color: on ? colors.onSurface : colors.muted, marginTop: 6 }}>{a.label}</AppText>
@@ -108,8 +114,8 @@ export default function Muhurat() {
 
 const useStyles = makeStyles((colors) => ({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 },
-  cellWrap: { width: "31.8%" },
-  cell: { alignItems: "center", paddingVertical: 14, paddingHorizontal: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(28,27,52,0.9)" },
+  cellWrap: {},
+  cell: { minHeight: 92, alignItems: "center", justifyContent: "center", paddingVertical: 12, paddingHorizontal: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(28,27,52,0.9)" },
   cellOn: { borderColor: "rgba(242,200,121,0.55)", backgroundColor: "rgba(58,29,74,0.9)" },
   best: { padding: 18, borderRadius: radii.xl, borderWidth: 1, borderColor: "rgba(217,121,162,0.3)" },
   windows: { flexDirection: "row", gap: 8, marginTop: 16, marginBottom: 8 },

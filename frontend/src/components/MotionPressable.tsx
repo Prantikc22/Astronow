@@ -3,7 +3,7 @@ import { Pressable, PressableProps, StyleProp, ViewStyle } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  Easing,
   withTiming,
 } from "react-native-reanimated";
 
@@ -42,7 +42,7 @@ export function MotionPressable({
         onPressIn?.(event);
       }}
       onPressOut={(event) => {
-        pressed.value = withSpring(0, { damping: 12, stiffness: 280, mass: 0.5 });
+        pressed.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.cubic) });
         onPressOut?.(event);
       }}
       onPress={(event) => {

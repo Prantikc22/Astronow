@@ -12,7 +12,6 @@ import Animated, {
   withDelay,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 
@@ -27,11 +26,11 @@ function Letter({ char, index, reduced, base }: { char: string; index: number; r
   const t = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
     if (reduced) return;
-    t.value = withDelay(base + 350 + index * 65, withSpring(1, { damping: 12, stiffness: 150 }));
+    t.value = withDelay(base + 300 + index * 55, withTiming(1, { duration: 480, easing: Easing.bezier(0.22, 1, 0.36, 1) }));
   }, [t, index, reduced, base]);
   const style = useAnimatedStyle(() => ({
-    opacity: Math.min(1, t.value * 1.4),
-    transform: [{ translateY: (1 - t.value) * -22 }, { rotate: `${(1 - t.value) * (index % 2 ? 12 : -12)}deg` }, { scale: 0.7 + t.value * 0.3 }],
+    opacity: t.value,
+    transform: [{ translateY: (1 - t.value) * 10 }],
   }));
   const isNow = index >= 5;
   return <Animated.Text style={[{ fontFamily: fonts.displayStrong, fontSize: 40, lineHeight: 48, color: isNow ? "#F7DDA6" : "#F8F2E8", letterSpacing: 0.4 }, style]}>{char}</Animated.Text>;

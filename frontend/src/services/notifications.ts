@@ -5,6 +5,19 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 import { dayRuler, parseClock } from "@/src/content/day-insights";
+import { readingLocale } from "@/src/content/daily-reading";
+import { translateText } from "@/src/i18n";
+
+const LANG_KEY = "astronow.notificationLanguage";
+let lang = "en";
+AsyncStorage.getItem(LANG_KEY).then((v) => { if (v) lang = v; }).catch(() => {});
+const tr = (text: string) => translateText(text, lang);
+
+/** Notifications are written in the reading language; call when it is known or changes. */
+export function setNotificationLanguage(language: string) {
+  lang = language || "en";
+  AsyncStorage.setItem(LANG_KEY, lang).catch(() => {});
+}
 
 export type NotificationPrefs = { daily: boolean; rahu: boolean; streak: boolean; moon: boolean };
 export const DEFAULT_PREFS: NotificationPrefs = { daily: true, rahu: true, streak: true, moon: true };
@@ -77,9 +90,11 @@ async function rescheduleDaily(prefs: NotificationPrefs) {
   for (let i = 0; i < 7; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, 7, 0, 0);
     const r = dayRuler(d);
-    const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
-    await at(`daily-${d.toDateString()}`, d, `Your ${weekday} reading is ready`,
-      `${r.planet} rules today. Wear ${r.colorName}, lucky number ${r.number}. See what the day holds.`, "/daily");
+    const weekday = d.toLocaleDateString(readingLocale(lang), { weekday: "long" });
+    const planet = tr(r.planet);
+    const colour = tr(r.colorName);
+    await at(`daily-${d.toDateString()}`, d, tr(`Your ${weekday} reading is ready`),
+      tr(`${planet} rules today. Wear ${colour}, lucky number ${r.number}. See what the day holds.`), "/daily");
   }
 }
 
@@ -95,8 +110,10 @@ export async function syncDailyNotifications(opts: { rahu?: { start?: string; en
     if (start != null) {
       const when = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor((start - 10) / 60), (start - 10) % 60);
       await cancelPrefix("rahu-");
-      await at(`rahu-${now.toDateString()}`, when, "Rahu Kaal starts in 10 minutes",
-        `A traditionally cautious window from ${opts.rahu.start} to ${opts.rahu.end}. Hold big decisions until it passes.`, "/(tabs)/today");
+      const from = opts.rahu.start;
+      const until = opts.rahu.end;
+      await at(`rahu-${now.toDateString()}`, when, tr("Rahu Kaal starts in 10 minutes"),
+        tr(`A traditionally cautious window from ${from} to ${until}. Hold big decisions until it passes.`), "/(tabs)/today");
     }
   }
   if (prefs.streak) {
@@ -104,8 +121,8 @@ export async function syncDailyNotifications(opts: { rahu?: { start?: string; en
     await cancelPrefix("streak-");
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 20, 0, 0);
     const days = opts.streakDays || 1;
-    await at(`streak-${tomorrow.toDateString()}`, tomorrow, days > 1 ? `Keep your ${days}-day streak going` : "Your stars checked in today",
-      "Your daily reading and today's mantra are waiting. Two minutes is enough.", "/(tabs)/today");
+    await at(`streak-${tomorrow.toDateString()}`, tomorrow, days > 1 ? tr(`Keep your ${days}-day streak going`) : tr("Your stars checked in today"),
+      tr("Your daily reading and today's mantra are waiting. Two minutes is enough."), "/(tabs)/today");
   }
 }
 
@@ -119,8 +136,10 @@ export async function scheduleMoonDays(days: { date: string; events: string[] }[
     const main = d.events.find((e) => /Purnima|Amavasya|Ekadashi/.test(e));
     if (!main) continue;
     const [y, m, day] = d.date.split("-").map(Number);
-    await at(`moon-${d.date}`, new Date(y, m - 1, day, 6, 30), main.split(" · ")[0] + " today",
-      `${main}. See the moon calendar and today's guidance.`, "/moon");
+    const event = tr(main);
+    const name = event.split(" · ")[0];
+    await at(`moon-${d.date}`, new Date(y, m - 1, day, 6, 30), tr(`${name} today`),
+      tr(`${event}. See the moon calendar and today's guidance.`), "/moon");
   }
 }
 

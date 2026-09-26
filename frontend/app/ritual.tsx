@@ -20,6 +20,7 @@ import { MotionPressable } from "@/src/components/MotionPressable";
 import { Screen } from "@/src/components/Screen";
 import { SparkleBurst } from "@/src/components/SparkleBurst";
 import { dayRuler } from "@/src/content/day-insights";
+import { translateText, useI18n } from "@/src/i18n";
 import { rise, springs } from "@/src/motion";
 import { makeStyles, radii, useTheme } from "@/src/theme";
 import { haptics } from "@/src/utils/haptics";
@@ -40,11 +41,12 @@ export default function Ritual() {
   const styles = useStyles();
   const { colors } = useTheme();
   const [mode, setMode] = useState<"chant" | "breathe">("chant");
+  const { language } = useI18n();
   const ruler = dayRuler();
   const mantra = MANTRAS[ruler.planet];
 
   return (
-    <Screen title="Daily ritual" subtitle={`${ruler.glyph} ${ruler.planet} rules today`} back>
+    <Screen title="Daily ritual" subtitle={`${ruler.glyph} ${translateText(ruler.planet, language)} rules today`} back>
       <Animated.View entering={rise(0)} style={styles.mantraCard}>
         <AppText variant="label" style={{ color: colors.coralSoft, letterSpacing: 1.2 }}>MANTRA OF THE DAY</AppText>
         <AppText center style={styles.devanagari}>{mantra.devanagari}</AppText>
@@ -101,7 +103,7 @@ function Japa() {
     const next = count + 1;
     setCount(next);
     AsyncStorage.setItem(key, String(next)).catch(() => {});
-    pulse.set(withSequence(withTiming(0.94, { duration: 70 }), withSpring(1, springs.bouncy)));
+    pulse.set(withSequence(withTiming(0.96, { duration: 70 }), withTiming(1, { duration: 160 })));
     if (next === BEADS) { haptics.celebrate(); setBurst((n) => n + 1); }
     else if (next % 27 === 0) haptics.medium();
     else haptics.selection();
@@ -175,7 +177,7 @@ function Breath() {
         </Animated.View>
         <View style={{ position: "absolute", alignItems: "center" }}>
           <AppText variant="title" style={{ color: colors.ivory }}>{running ? PHASES[phase].label : "Ready"}</AppText>
-          {running ? <AppText variant="caption" style={{ color: "rgba(248,242,232,0.8)", marginTop: 2 }}>Round {rounds + 1}</AppText> : null}
+          {running ? <AppText variant="caption" style={{ color: "rgba(248,242,232,0.8)", marginTop: 2 }}>{`Round ${rounds + 1}`}</AppText> : null}
         </View>
       </View>
       <AppText variant="caption" muted center style={{ marginTop: 14, maxWidth: 300 }}>In for 4, hold for 4, out for 6. A calm way to settle the mind before chanting or a big decision.</AppText>

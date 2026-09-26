@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
-import { Animated, ScrollView, View } from "react-native";
+import { Animated, Easing, ScrollView, View } from "react-native";
 
 import { api } from "@/src/api/client";
 import { AppText } from "@/src/components/AppText";
@@ -44,7 +44,7 @@ export default function TarotScreen() {
     mutationFn: () => api.post("/tarot/draw", { spread, interpret: true }),
     onSuccess: () => {
       reveal.setValue(0);
-      Animated.spring(reveal, { toValue: 1, damping: 15, stiffness: 110, useNativeDriver: true }).start();
+      Animated.timing(reveal, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     },
   });

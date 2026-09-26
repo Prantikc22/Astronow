@@ -115,15 +115,15 @@ export default function CompatibilityScreen() {
             <View style={{ gap: 16 }}>
               <View style={styles.reportHeading}>
                 <View style={styles.reportSeal}><Icon name="heart" size={26} color={colors.gold} weight="duotone" /></View>
-                <AppText variant="label" style={{ color: colors.coralSoft }}>ASTRONOW {relation.toUpperCase()} MATCH</AppText>
-                <AppText variant="display" center style={{ marginTop: 5 }}>You & {name}</AppText>
+                <AppText variant="label" style={{ color: colors.coralSoft }}>{`ASTRONOW ${relation.toUpperCase()} MATCH`}</AppText>
+                <AppText variant="display" center style={{ marginTop: 5 }}>{`You & ${name}`}</AppText>
                 <AppText variant="body" muted center style={{ marginTop: 6 }}>A reflective compatibility reading built from both birth charts.</AppText>
               </View>
               <GlassCard testID="compat-result">
                 <AppText variant="label" muted center>Vedic compatibility · Guna Milan</AppText>
                 <AppText variant="hero" center style={{ color: colors.gold, marginTop: 8 }}>{res.guna_milan.total}<AppText variant="title" muted>/36</AppText></AppText>
                 <AppText variant="subtitle" center style={{ textTransform: "capitalize", marginTop: 4 }}>{res.guna_milan.verdict.replace("_", " ")}</AppText>
-                <AppText variant="caption" muted center style={{ marginTop: 4 }}>Partner Moon sign · {res.partner_moon_sign}</AppText>
+                <AppText variant="caption" muted center style={{ marginTop: 4 }}>{`Partner Moon sign · ${res.partner_moon_sign}`}</AppText>
                 {!timeKnown || profile?.birth_time_known === false ? <AppText variant="caption" muted center style={{ marginTop: 6 }}>Approximate score · exact birth times improve precision</AppText> : null}
               </GlassCard>
               <GlassCard style={{ borderColor: colors.borderStrong }}>

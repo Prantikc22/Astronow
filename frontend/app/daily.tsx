@@ -86,7 +86,7 @@ export default function DailyReading() {
           <LinearGradient colors={["#1F2148", "#191632", "#2A1535"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summary} testID="daily-full-reading">
             <View style={styles.rulerPill}>
               <View style={[styles.colorDot, { backgroundColor: ruler.color, shadowColor: ruler.color }]} />
-              <AppText variant="body">Wear {ruler.colorName}</AppText>
+              <AppText variant="body">{`Wear ${translateText(ruler.colorName, language)}`}</AppText>
               <View style={styles.pillDivider} />
               <AppText variant="body" muted>Lucky</AppText>
               <AppText variant="title" style={{ fontSize: 24, lineHeight: 28 }}>{ruler.number}</AppText>

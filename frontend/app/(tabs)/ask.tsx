@@ -14,6 +14,7 @@ import { CosmicBackground } from "@/src/components/CosmicBackground";
 import { Icon, type FeatherName } from "@/src/components/Icon";
 import { MotionPressable } from "@/src/components/MotionPressable";
 import { haptics } from "@/src/utils/haptics";
+import { useColumnWidth } from "@/src/utils/layout";
 import { useAuth } from "@/src/store/auth";
 import { fonts, makeStyles, radii, useTheme } from "@/src/theme";
 import { useI18n } from "@/src/i18n";
@@ -46,6 +47,7 @@ export default function Ask() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const suggestionWidth = useColumnWidth(2, 9);
   const { data: usage } = useQuery({ queryKey: ["usage"], queryFn: () => api.get("/usage"), staleTime: 30 * 1000, retry: false });
   const { data: history } = useQuery({ queryKey: ["conversations"], queryFn: () => api.get("/conversations"), enabled: showHistory });
   const savedInterests = React.useMemo(
@@ -162,7 +164,7 @@ export default function Ask() {
             <View style={{ flexDirection: "row", gap: 9, alignItems: "center" }}>
               {usage && !usage.premium ? (
                 <MotionPressable onPress={() => router.push("/paywall")} style={styles.leftPill} testID="ask-credits" accessibilityLabel={`${usage.remaining} questions left`}>
-                  <AppText variant="label" style={{ color: usage.remaining > 2 ? colors.goldSoft : colors.coral, fontSize: 12 }}>{usage.remaining} left</AppText>
+                  <AppText variant="label" style={{ color: usage.remaining > 2 ? colors.goldSoft : colors.coral, fontSize: 12 }}>{`${usage.remaining} left`}</AppText>
                 </MotionPressable>
               ) : null}
               <MotionPressable onPress={() => setShowHistory(!showHistory)} style={styles.headerButton} accessibilityLabel="Conversation history">
@@ -207,7 +209,7 @@ export default function Ask() {
                 </Animated.View>
                 <View style={styles.suggestions}>
                   {suggestions.map((item, index) => (
-                    <Animated.View key={item.label} entering={FadeInDown.delay(130 + index * 45).duration(480)} style={styles.suggestionCell}>
+                    <Animated.View key={item.label} entering={FadeInDown.delay(130 + index * 45).duration(480)} style={[styles.suggestionCell, { width: suggestionWidth }]}>
                       <MotionPressable onPress={() => send(t(item.prompt))} style={styles.suggestion} testID={"ask-suggest-" + item.label}>
                         <View style={[styles.suggestionIcon, { backgroundColor: item.color + "20" }]}><Icon name={item.icon} size={17} color={item.color} /></View>
                         <AppText variant="subtitle">{item.label}</AppText>
@@ -332,7 +334,7 @@ const useStyles = makeStyles((colors) => ({
   intro: { marginTop: 7, maxWidth: 340 },
   personalized: { color: colors.gold, marginTop: 8, letterSpacing: 0.2 },
   suggestions: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 18, alignSelf: "stretch" },
-  suggestionCell: { width: "48.5%" },
+  suggestionCell: {},
   suggestion: { minHeight: 76, flexDirection: "row", alignItems: "center", gap: 9, padding: 12, borderRadius: radii.lg, backgroundColor: "rgba(21,20,43,0.96)", borderWidth: 1, borderColor: colors.border },
   suggestionIcon: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   grounded: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 18 },

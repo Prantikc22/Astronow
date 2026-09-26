@@ -47,9 +47,9 @@ export default function ChartScreen() {
           {chart.moon_nakshatra ? (
             <GlassCard>
               <AppText variant="label" muted>{t("nakshatra", "Birth Star")}</AppText>
-              <AppText variant="subtitle" style={{ marginTop: 4 }}>
-                {chart.moon_nakshatra} · Pada {chart.moon_pada}
-              </AppText>
+              <AppText variant="subtitle" style={{ marginTop: 4 }}>{`
+                ${chart.moon_nakshatra} · Pada ${chart.moon_pada}
+              `}</AppText>
             </GlassCard>
           ) : null}
 
@@ -72,10 +72,10 @@ export default function ChartScreen() {
                 </MotionPressable>
                 {open === p.name ? (
                   <View style={styles.detail}>
-                    <AppText variant="caption" muted>Nakshatra: {p.nakshatra} (lord {p.nakshatra_lord})</AppText>
+                    <AppText variant="caption" muted>{`Nakshatra: ${p.nakshatra} (lord ${p.nakshatra_lord})`}</AppText>
                     <MotionPressable onPress={() => router.push("/(tabs)/ask")} style={styles.askLink} testID={`planet-ask-${p.name}`}>
                       <Icon name="message-circle" size={14} color={colors.gold} />
-                      <AppText variant="caption" style={{ color: colors.gold }}>Ask about {p.name}</AppText>
+                      <AppText variant="caption" style={{ color: colors.gold }}>{`Ask about ${p.name}`}</AppText>
                     </MotionPressable>
                   </View>
                 ) : null}

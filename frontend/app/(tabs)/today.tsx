@@ -16,7 +16,6 @@ import Animated, {
   cancelAnimation,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,11 +37,11 @@ import { Skeleton } from "@/src/components/Skeleton";
 import { SparkleBurst } from "@/src/components/SparkleBurst";
 import { ShareSheet } from "@/src/components/ShareCard";
 import { UpsellSheet, useNudge, type UpsellKind } from "@/src/components/UpsellSheet";
-import { enableNotifications, getPrefs, syncDailyNotifications } from "@/src/services/notifications";
+import { enableNotifications, getPrefs, setNotificationLanguage, syncDailyNotifications } from "@/src/services/notifications";
 import { todayPath, useActiveProfile } from "@/src/store/active-profile";
 import { WeekStrip } from "@/src/components/WeekStrip";
 import { AREAS, areaMeter, dayRuler, dayScore, meterPercent, scoreTone } from "@/src/content/day-insights";
-import { dailyReading, moonPosition, readingLocale } from "@/src/content/daily-reading";
+import { dailyReading, energyTerm, moonPosition, readingLocale } from "@/src/content/daily-reading";
 import { displayCurrency } from "@/src/content/pricing";
 import { REPORTS, reportDisplay, reportPrice } from "@/src/content/reports";
 import { translateText } from "@/src/i18n";
@@ -51,6 +50,7 @@ import { useAuth } from "@/src/store/auth";
 import { useVisitStreak } from "@/src/store/streak";
 import { makeStyles, radii, useTheme } from "@/src/theme";
 import { haptics } from "@/src/utils/haptics";
+import { useColumnWidth } from "@/src/utils/layout";
 
 const TARA = require("../../assets/images/guides/tara.png");
 const QUICK: { label: string; q: string; icon: FeatherName }[] = [
@@ -68,6 +68,7 @@ export default function Today() {
   const { profile, entitlement } = useAuth();
   const language = profile?.language || "en";
   const { active, members, setActive } = useActiveProfile();
+  const t = (text: string) => translateText(text, language);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: active ? ["today", language, "member", active.id] : ["today", language], queryFn: () => api.get(todayPath(active)), staleTime: 10 * 60 * 1000,
     refetchInterval: (query) => query.state.data?.reading_status === "generating" ? 5000 : false,
@@ -97,8 +98,9 @@ export default function Today() {
     });
   }, []);
   useEffect(() => {
+    setNotificationLanguage(language);
     if (data?.panchang && !active) syncDailyNotifications({ rahu: data.panchang.rahu_kalam, streakDays: streak?.days }).catch(() => {});
-  }, [data?.panchang, active, streak?.days]);
+  }, [data?.panchang, active, streak?.days, language]);
   const score = dayScore(data?.energy);
   const ruler = dayRuler(now);
   const dateLabel = now.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
@@ -133,6 +135,7 @@ export default function Today() {
     }
   }, [score]);
 
+  const areaWidth = useColumnWidth(2, 10);
   const artha = REPORTS.find((report) => report.slug === "artha-strategy")!;
   const compass = REPORTS.find((report) => report.slug === "twelve-year-compass")!;
   const match = REPORTS.find((report) => report.slug === "match-report")!;
@@ -178,7 +181,7 @@ export default function Today() {
           {usage && !usage.premium ? (
             <MotionPressable onPress={() => router.push("/paywall")} style={styles.credits} haptic="light" testID="home-credits">
               <View style={[styles.creditRing, { borderColor: usage.remaining > 2 ? colors.goldSoft : colors.coral }]}><AppText variant="label" style={{ fontSize: 12 }}>{usage.remaining}</AppText></View>
-              <AppText variant="caption" style={{ flex: 1, color: colors.onSurface }}>{usage.remaining === 1 ? "question" : "questions"} left this month{usage.bonus ? ` · includes ${usage.bonus} bonus` : ""}</AppText>
+              <AppText variant="caption" style={{ flex: 1, color: colors.onSurface }}>{usage.remaining === 1 ? "question left this month" : "questions left this month"}{usage.bonus ? t(` · includes ${usage.bonus} bonus`) : ""}</AppText>
               <AppText variant="label" style={{ color: colors.goldSoft }}>Get more</AppText>
               <Icon name="arrow-right" size={14} color={colors.goldSoft} />
             </MotionPressable>
@@ -211,12 +214,12 @@ export default function Today() {
                     {score != null ? <AppText variant="caption" center style={{ color: colors.coralSoft, marginTop: 4 }}>{scoreTone(score)} · {moonPosition(data.moon_today?.sign, data.moon_today?.nakshatra, language)}</AppText> : null}
                     <View style={styles.rulerPill}>
                       <View style={[styles.colorDot, { backgroundColor: ruler.color, shadowColor: ruler.color }]} />
-                      <AppText variant="body" style={{ color: colors.onSurface }}>Wear {ruler.colorName}</AppText>
+                      <AppText variant="body" style={{ color: colors.onSurface }}>{`Wear ${translateText(ruler.colorName, language)}`}</AppText>
                       <View style={styles.pillDivider} />
                       <AppText variant="body" muted>Lucky</AppText>
                       <AppText variant="title" style={{ fontSize: 24, lineHeight: 28 }}>{ruler.number}</AppText>
                     </View>
-                    <AppText variant="caption" muted center style={{ marginTop: 8 }}>{ruler.glyph}  Ruled by {ruler.planet} · the day lord in Vedic tradition</AppText>
+                    <AppText variant="caption" muted center style={{ marginTop: 8 }}>{`${ruler.glyph}  Ruled by ${translateText(ruler.planet, language)} · the day lord in Vedic tradition`}</AppText>
                     <View style={styles.heroCta}>
                       <AppText variant="label" style={{ color: colors.onSurface, fontSize: 14 }}>Read full day</AppText>
                       <Icon name="arrow-right" size={16} color={colors.onSurface} />
@@ -233,13 +236,13 @@ export default function Today() {
                     const meter = areaMeter(data.energy, area.key);
                     const pct = meterPercent(meter);
                     return (
-                      <MotionPressable key={area.key} onPress={() => router.push({ pathname: "/daily", params: { area: area.key } } as any)} style={styles.areaCell} testID={`home-area-${area.key}`}>
+                      <MotionPressable key={area.key} onPress={() => router.push({ pathname: "/daily", params: { area: area.key } } as any)} style={[styles.areaCell, { width: areaWidth }]} testID={`home-area-${area.key}`}>
                         <View style={styles.areaTop}>
                           <LinearGradient colors={area.tint} style={styles.areaIcon}><Icon name={area.icon} size={18} color={colors.ink} weight="duotone" /></LinearGradient>
                           <CountUp value={pct} suffix="%" variant="subtitle" delay={300 + i * 90} />
                         </View>
                         <AppText variant="label" style={{ color: colors.muted, marginTop: 14, letterSpacing: 0.8 }}>{area.title.toUpperCase()}</AppText>
-                        <AppText variant="body" numberOfLines={1} style={{ marginTop: 2 }}>{meter.label}</AppText>
+                        <AppText variant="body" numberOfLines={1} style={{ marginTop: 2 }}>{energyTerm(meter.label, language)}</AppText>
                         <View style={{ marginTop: 12 }}><ProgressBar value={pct / 100} delay={300 + i * 90} colors={area.tint} height={5} /></View>
                       </MotionPressable>
                     );
@@ -281,7 +284,7 @@ export default function Today() {
                   <LinearGradient colors={["#B08A3E", "#6A4A1C"]} style={styles.ritualIcon}><AppText style={{ fontSize: 22, color: "#FFF6E0" }}>{ruler.glyph}</AppText></LinearGradient>
                   <View style={{ flex: 1 }}>
                     <AppText variant="label" style={{ color: colors.goldSoft, letterSpacing: 1 }}>MANTRA OF THE DAY</AppText>
-                    <AppText variant="subtitle" style={{ marginTop: 2 }}>{ruler.planet} mantra · 108 japa</AppText>
+                    <AppText variant="subtitle" style={{ marginTop: 2 }}>{`${translateText(ruler.planet, language)} mantra · 108 japa`}</AppText>
                     <AppText variant="caption" muted>Two quiet minutes for today&apos;s ruling planet</AppText>
                   </View>
                   <Icon name="chevron-right" size={18} color={colors.muted} />
@@ -385,7 +388,7 @@ export default function Today() {
                     <View style={styles.periodIcon}><Icon name="hourglass" size={22} color={colors.violet} weight="duotone" /></View>
                     <View style={{ flex: 1 }}>
                       <AppText variant="label" style={{ color: colors.violet, letterSpacing: 1 }}>YOUR LIFE CHAPTER</AppText>
-                      <AppText variant="subtitle" style={{ marginTop: 3 }}>{data.current_period.mahadasha} period{data.current_period.antardasha ? ` · ${data.current_period.antardasha} sub-period` : ""}</AppText>
+                      <AppText variant="subtitle" style={{ marginTop: 3 }}>{t(`${translateText(data.current_period.mahadasha, language)} period`)}{data.current_period.antardasha ? t(` · ${translateText(data.current_period.antardasha, language)} sub-period`) : ""}</AppText>
                       <AppText variant="caption" muted style={{ marginTop: 2 }}>See what this chapter asks of you</AppText>
                     </View>
                     <Icon name="chevron-right" size={18} color={colors.muted} />
@@ -402,7 +405,7 @@ export default function Today() {
         <Animated.View pointerEvents="none" style={[styles.mini, { paddingTop: insets.top + 6 }, miniHeader]}>
           {Platform.OS === "ios" ? <BlurView tint="dark" intensity={40} style={{ position: "absolute", inset: 0 }} /> : <View style={{ position: "absolute", inset: 0, backgroundColor: "rgba(10,9,24,0.94)" }} />}
           <AppText variant="subtitle">{name}</AppText>
-          {score != null ? <View style={styles.miniScore}><AppText variant="label" style={{ color: colors.ink }}>{score}% today</AppText></View> : null}
+          {score != null ? <View style={styles.miniScore}><AppText variant="label" style={{ color: colors.ink }}>{`${score}% today`}</AppText></View> : null}
         </Animated.View>
       </CosmicBackground>
       <UpsellSheet visible={sheet} kind={sheetKind} onClose={() => setSheet(false)} />
@@ -450,7 +453,7 @@ function StreakChip({ days, fresh }: { days: number; fresh: boolean }) {
   const s = useSharedValue(1);
   useEffect(() => {
     if (fresh) {
-      const timer = setTimeout(() => { s.value = withSequence(withSpring(1.25, { damping: 6 }), withSpring(1)); haptics.soft(); }, 900);
+      const timer = setTimeout(() => { s.value = withSequence(withTiming(1.08, { duration: 180 }), withTiming(1, { duration: 260 })); haptics.soft(); }, 900);
       return () => clearTimeout(timer);
     }
   }, [fresh, s]);
@@ -459,7 +462,7 @@ function StreakChip({ days, fresh }: { days: number; fresh: boolean }) {
     <Animated.View style={[styles.streak, style]} accessibilityLabel={`${days} day streak`}>
       <Icon name="flame" size={16} color="#F29B38" weight="fill" />
       <AppText variant="label" style={{ color: colors.goldSoft }}>{days}</AppText>
-      <AppText variant="caption" muted>{days === 1 ? "day" : "days"}</AppText>
+      <AppText variant="caption" muted>{days === 1 ? "Day" : "Days"}</AppText>
     </Animated.View>
   );
 }
@@ -478,7 +481,7 @@ function ActionOfDay({ action }: { action: string }) {
   const toggle = () => {
     const next = !done;
     setDone(next);
-    check.set(withSpring(next ? 1 : 0, { damping: 12, stiffness: 200 }));
+    check.set(withTiming(next ? 1 : 0, { duration: 260 }));
     if (next) { setBurst((n) => n + 1); haptics.celebrate(); } else haptics.light();
     AsyncStorage.setItem(key, next ? "done" : "open").catch(() => {});
   };
@@ -604,7 +607,7 @@ const useStyles = makeStyles((colors) => ({
   pillDivider: { width: 1, height: 24, backgroundColor: colors.borderStrong },
   heroCta: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8, marginTop: 18, paddingHorizontal: 22, height: 46, borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(217,121,162,0.6)" },
   areaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
-  areaCell: { width: "48.4%", padding: 15, borderRadius: radii.lg, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.border },
+  areaCell: { padding: 15, borderRadius: radii.lg, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.border },
   areaTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   areaIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   card: { padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.border },

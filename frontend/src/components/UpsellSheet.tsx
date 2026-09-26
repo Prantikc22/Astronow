@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { Modal, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText } from "@/src/components/AppText";
@@ -78,7 +78,7 @@ export function UpsellSheet({ visible, kind, onClose }: { visible: boolean; kind
     if (!visible) return;
     haptics.soft();
     fade.set(withTiming(1, { duration: 240 }));
-    y.set(withSpring(0, { damping: 20, stiffness: 180, mass: 0.9 }));
+    y.set(withTiming(0, { duration: 340, easing: Easing.bezier(0.22, 1, 0.36, 1) }));
   }, [visible, fade, y]);
 
   const close = useCallback((then?: () => void) => {
@@ -92,7 +92,7 @@ export function UpsellSheet({ visible, kind, onClose }: { visible: boolean; kind
     .onUpdate((e) => { y.set(Math.max(0, e.translationY)); })
     .onEnd((e) => {
       if (e.translationY > 110 || e.velocityY > 900) runOnJS(close)();
-      else y.set(withSpring(0, { damping: 20, stiffness: 200 }));
+      else y.set(withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) }));
     });
 
   const sheet = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));

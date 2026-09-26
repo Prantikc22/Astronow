@@ -9,7 +9,6 @@ import Animated, {
   withDelay,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
@@ -46,7 +45,7 @@ function Orbit({ size, delay, duration, dot, reverse }: { size: number; delay: n
   const reveal = useSharedValue(0);
   const spin = useSharedValue(0);
   useEffect(() => {
-    reveal.value = withDelay(delay, withSpring(1, { damping: 16, stiffness: 90 }));
+    reveal.value = withDelay(delay, withTiming(1, { duration: 900, easing: Easing.bezier(0.22, 1, 0.36, 1) }));
     spin.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.linear }), -1));
   }, [reveal, spin, delay, duration]);
   const style = useAnimatedStyle(() => ({
@@ -78,7 +77,7 @@ export function AnimatedSplash({ ready, onDone }: { ready: boolean; onDone: () =
     if (!reduced) {
       stars.value = withTiming(1, { duration: 900 });
       bloom.value = withDelay(120, withTiming(1, { duration: 1200, easing: Easing.out(Easing.cubic) }));
-      mark.value = withDelay(480, withSequence(withTiming(1.1, { duration: 260, easing: Easing.out(Easing.quad) }), withSpring(1, { damping: 9, stiffness: 160 })));
+      mark.value = withDelay(480, withSequence(withTiming(1.1, { duration: 260, easing: Easing.out(Easing.quad) }), withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) })));
       tagline.value = withDelay(1450, withTiming(1, { duration: 600 }));
     } else {
       stars.value = 1; bloom.value = 1; tagline.value = 1;

@@ -42,7 +42,7 @@ export default function TransitsScreen() {
                 <AppText variant="caption" muted>{tr.sign} · {tr.nakshatra}</AppText>
               </View>
               <View style={styles.housePill}>
-                <AppText variant="caption" style={{ color: colors.onSurface }}>House {tr.house_from_moon}</AppText>
+                <AppText variant="caption" style={{ color: colors.onSurface }}>{`House ${tr.house_from_moon}`}</AppText>
               </View>
             </View>
           ))}

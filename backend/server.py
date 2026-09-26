@@ -7,6 +7,7 @@ import logging
 import os
 import secrets
 import asyncio
+import time
 from datetime import date, datetime, time as dtime, timedelta, timezone
 from typing import Any, Literal, Optional
 
@@ -80,15 +81,28 @@ def compute_full(dob: date, t: Optional[dtime], lat: float, lon: float,
     return {"chart": chart, "dasha": dashas, "numerology": numo}
 
 
-async def get_profile(user_id: str) -> Optional[dict]:
+async def get_profile(user_id: str, with_changes: bool = True) -> Optional[dict]:
     profile = await db.one("profiles", filters={"user_id": user_id})
-    if profile:
+    if profile and with_changes:
         profile["birth_details_change_count"] = await db.count(
             "analytics_events", filters={"user_id": user_id, "name": "birth_profile_corrected"})
     return profile
 
 
+_ent_cache: dict[str, tuple[dict, float]] = {}
+_ENT_TTL = 30.0
+
+
 async def get_entitlement(user_id: str) -> dict:
+    hit = _ent_cache.get(user_id)
+    if hit and hit[1] > time.monotonic():
+        return hit[0]
+    ent = await _read_entitlement(user_id)
+    _ent_cache[user_id] = (ent, time.monotonic() + _ENT_TTL)
+    return ent
+
+
+async def _read_entitlement(user_id: str) -> dict:
     row = await db.one("entitlements", "tier,source,expires_at", filters={"user_id": user_id})
     source = (row or {}).get("source")
     # Never trust a row that could have been modified through an older client
@@ -537,8 +551,14 @@ async def get_terminology(mode: str = "both"):
     return {"mode": mode, "terms": terminology.full_map(mode)}
 
 
+_cfg_cache: tuple[dict, float] | None = None
+
+
 @api.get("/config")
 async def get_config():
+    global _cfg_cache
+    if _cfg_cache and _cfg_cache[1] > time.monotonic():
+        return dict(_cfg_cache[0])
     cfg = dict(config.DEFAULT_APP_CONFIG)
     if db.enabled():
         rows = await db.select("app_config", "key,value")
@@ -551,7 +571,8 @@ async def get_config():
     cfg["ai_enabled"] = config.AI_ENABLED
     cfg["persistence_enabled"] = db.enabled()
     cfg.pop("premium_tiers", None)
-    return cfg
+    _cfg_cache = (cfg, time.monotonic() + 60.0)
+    return dict(cfg)
 
 
 # --------------------------------------------------------------------------- #
@@ -776,8 +797,7 @@ async def delete_conversation(cid: str, user: dict = User):
 
 
 async def _check_fair_use(user_id: str) -> None:
-    ent = await get_entitlement(user_id)
-    cfg = await get_config()
+    ent, cfg = await asyncio.gather(get_entitlement(user_id), get_config())
     if not ent["premium"]:
         month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         used = await db.count("messages", filters={"user_id": user_id, "role": "user",
@@ -794,10 +814,9 @@ async def _check_fair_use(user_id: str) -> None:
 
 
 async def _assemble_context(user_id: str, question: str) -> tuple[dict, dict]:
-    data = await load_chart(user_id)
+    data, profile = await asyncio.gather(load_chart(user_id), get_profile(user_id, with_changes=False))
     if not data:
         raise HTTPException(404, "Complete onboarding first.")
-    profile = await get_profile(user_id)
     tr = transit_mod.compute_transits(data["chart"])
     pan = None
     if profile and profile.get("lat") is not None:
@@ -841,20 +860,24 @@ async def send_message(cid: str, body: MessageIn, user: dict = User):
 @api.post("/ask/stream")
 async def ask_stream(cid: str, body: MessageIn, user: dict = User):
     _require_db()
-    await _check_fair_use(user["id"])
-    ctx, _ = await _assemble_context(user["id"], body.content)
-    await db.insert("messages", {"conversation_id": cid, "user_id": user["id"], "role": "user",
-        "content": body.content, "topic": ctx["topic"]})
-    history = await db.select("messages", "role,content", filters={"conversation_id": cid},
-        order="created_at.desc", limit=8)
+    # Every Supabase round-trip costs ~0.5-1s, so independent reads run together
+    # and the user's message is saved while the model is already answering.
+    _, (ctx, profile), history = await asyncio.gather(
+        _check_fair_use(user["id"]),
+        _assemble_context(user["id"], body.content),
+        db.select("messages", "role,content", filters={"conversation_id": cid}, order="created_at.desc", limit=7),
+    )
+    save_question = asyncio.create_task(db.insert("messages", {"conversation_id": cid, "user_id": user["id"], "role": "user",
+        "content": body.content, "topic": ctx["topic"]}))
     msgs = [{"role": m["role"], "content": m["content"]} for m in reversed(history)]
+    msgs.append({"role": "user", "content": body.content})
     msgs.insert(0, {"role": "user", "content": "CONTEXT:\n" + json.dumps(ctx, default=str)})
 
     async def gen():
         parts: list[str] = []
         try:
-            async for chunk in ai_gateway.stream(prompts.SYSTEM_PROMPT, msgs, tier="standard",
-                                                  user_id=user["id"], feature="chat"):
+            async for chunk in ai_gateway.stream(prompts.chat_system_prompt((profile or {}).get("language") or "en"), msgs,
+                                                  tier="standard", user_id=user["id"], feature="chat"):
                 parts.append(chunk)
                 yield chunk
         except ai_gateway.AIUnavailable:
@@ -876,10 +899,11 @@ async def ask_stream(cid: str, body: MessageIn, user: dict = User):
             parts.append(fallback)
             yield fallback
         reply = "".join(parts)
+        await save_question
         await db.insert("messages", {"conversation_id": cid, "user_id": user["id"], "role": "assistant", "content": reply})
         await db.update("conversations", {"updated_at": datetime.now(timezone.utc)}, filters={"id": cid})
 
-    return StreamingResponse(gen(), media_type="text/plain")
+    return StreamingResponse(gen(), media_type="text/plain", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 async def _maybe_title(cid: str, first_msg: str) -> None:
@@ -908,6 +932,7 @@ async def entitlement(user: dict = User):
 
 @api.post("/entitlement/sync")
 async def entitlement_sync(body: EntitlementSync, user: dict = User):
+    _ent_cache.pop(user["id"], None)
     _require_db()
     if not RC_SECRET:
         raise HTTPException(503, "Purchase verification is not configured on the server.")
@@ -932,6 +957,7 @@ async def entitlement_sync(body: EntitlementSync, user: dict = User):
         "rc_customer_id": body.rc_customer_id, "expires_at": exp_dt,
         "updated_at": datetime.now(timezone.utc)}, upsert=True, on_conflict="user_id")
     await _track(user["id"], "purchase_completed", {"tier": tier})
+    _ent_cache.pop(user["id"], None)
     return await get_entitlement(user["id"])
 
 
@@ -1000,7 +1026,7 @@ async def admin_stats(x_admin_token: Optional[str] = Header(None)):
 # --------------------------------------------------------------------------- #
 # Family profiles
 # --------------------------------------------------------------------------- #
-FAMILY_LIMIT = {"free": 1, "premium": 10}
+FAMILY_LIMIT = {"free": 1, "premium": 5}
 
 
 class FamilyIn(BaseModel):

@@ -6,6 +6,7 @@ provider is not configured.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import AsyncGenerator, Optional
@@ -21,6 +22,18 @@ _URL = "https://openrouter.ai/api/v1/chat/completions"
 
 class AIUnavailable(Exception):
     pass
+
+
+_http: Optional[httpx.AsyncClient] = None
+
+
+def _client() -> httpx.AsyncClient:
+    """One pooled client: reusing the TLS connection saves ~300ms per request."""
+    global _http
+    if _http is None or _http.is_closed:
+        _http = httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0),
+                                  limits=httpx.Limits(max_connections=50, max_keepalive_connections=20))
+    return _http
 
 
 def _headers() -> dict:
@@ -119,8 +132,12 @@ async def generate_json(system: str, user: str, tier: str = "deep",
 
 async def stream(system: str, messages: list[dict], tier: str = "standard",
                  user_id: Optional[str] = None, feature: str = "chat",
-                 temperature: float = 0.7) -> AsyncGenerator[str, None]:
-    """Yield text chunks. Falls back to a single grounded message upstream."""
+                 temperature: float = 0.7, max_tokens: int = 900,
+                 first_token_timeout: float = 25.0) -> AsyncGenerator[str, None]:
+    """Yield text chunks. Falls back to a single grounded message upstream.
+
+    Chat skips hidden reasoning (it only delays the first word) and fails fast
+    if the provider sends nothing, so the app never waits minutes."""
     if not config.AI_ENABLED:
         raise AIUnavailable()
     model = _model(tier)
@@ -128,26 +145,47 @@ async def stream(system: str, messages: list[dict], tier: str = "standard",
         "model": model,
         "messages": [{"role": "system", "content": system}] + messages,
         "temperature": temperature,
+        "max_tokens": max_tokens,
+        "reasoning": {"enabled": False},
+        "provider": {"sort": "latency"},
         "stream": True,
     }
     try:
-        async with httpx.AsyncClient(timeout=120) as c:
-            async with c.stream("POST", _URL, headers=_headers(), json=payload) as r:
-                if r.status_code != 200:
-                    raise AIUnavailable()
-                async for line in r.aiter_lines():
-                    if not line or not line.startswith("data:"):
-                        continue
-                    chunk = line[5:].strip()
-                    if chunk == "[DONE]":
-                        break
-                    try:
-                        obj = json.loads(chunk)
-                        delta = obj["choices"][0]["delta"].get("content")
-                        if delta:
-                            yield delta
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        continue
+        async with _client().stream("POST", _URL, headers=_headers(), json=payload) as r:
+            if r.status_code != 200:
+                logger.error("OpenRouter stream error %s", r.status_code)
+                raise AIUnavailable()
+            lines = r.aiter_lines()
+            got_text = False
+            # Keep-alive comments don't count: the first real text must arrive by this deadline.
+            deadline = asyncio.get_running_loop().time() + first_token_timeout
+            while True:
+                try:
+                    if got_text:
+                        line = await lines.__anext__()
+                    else:
+                        remaining = deadline - asyncio.get_running_loop().time()
+                        if remaining <= 0:
+                            raise asyncio.TimeoutError()
+                        line = await asyncio.wait_for(lines.__anext__(), remaining)
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError as exc:
+                    logger.warning("OpenRouter sent no text within %ss", first_token_timeout)
+                    raise AIUnavailable() from exc
+                if not line or not line.startswith("data:"):
+                    continue
+                chunk = line[5:].strip()
+                if chunk == "[DONE]":
+                    break
+                try:
+                    obj = json.loads(chunk)
+                    delta = obj["choices"][0]["delta"].get("content")
+                    if delta:
+                        got_text = True
+                        yield delta
+                except (json.JSONDecodeError, KeyError, IndexError):
+                    continue
     except httpx.HTTPError as exc:
         logger.warning("OpenRouter stream unavailable: %s", exc)
         raise AIUnavailable() from exc

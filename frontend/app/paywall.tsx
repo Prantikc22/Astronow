@@ -166,7 +166,7 @@ export default function Paywall() {
 
               <View style={styles.freeCard}>
                 <Icon name="gift" size={18} color={colors.violet} weight="duotone" />
-                <AppText variant="caption" muted style={{ flex: 1 }}>Daily sky, chart basics and {freeMessages} messages with Tara each month stay free, always.</AppText>
+                <AppText variant="caption" muted style={{ flex: 1 }}>{`Daily sky, chart basics and ${freeMessages} messages with Tara each month stay free, always.`}</AppText>
               </View>
             </Animated.View>
           ) : (

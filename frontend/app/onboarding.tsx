@@ -286,7 +286,7 @@ export default function Onboarding() {
                     ))}
                   </View>
                   <AppText variant="subtitle" style={{ marginTop: 25 }}>Tara’s reading language</AppText>
-                  <AppText variant="caption" muted style={{ marginTop: 4, marginBottom: 12 }}>Tara replies in your choice. App menus remain in English.</AppText>
+                  <AppText variant="caption" muted style={{ marginTop: 4, marginBottom: 12 }}>Tara and the app will use your choice. You can change it anytime in Profile.</AppText>
                   <View style={styles.wrap}>
                     {READING_LANGUAGES.map((item) => <Chip key={item.code} label={item.native} selected={readingLanguage === item.code}
                       onPress={() => setReadingLanguage(item.code)} testID={`onb-language-${item.code}`} />)}
@@ -321,7 +321,7 @@ function StepShell({ step, icon, title, subtitle, children }: any) {
         <View style={{ width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: colors.brandTertiary, borderWidth: 1, borderColor: colors.glassBorder }}>
           <Icon name={icon} size={19} color={colors.gold} />
         </View>
-        <AppText variant="caption" style={{ color: colors.coralSoft, letterSpacing: 1.3 }}>CHART MAKING · {step}</AppText>
+        <AppText variant="caption" style={{ color: colors.coralSoft, letterSpacing: 1.3 }}>{`CHART MAKING · ${step}`}</AppText>
       </View>
       <AppText variant="title">{title}</AppText>
       <AppText variant="body" muted style={{ marginTop: 8, marginBottom: 24 }}>{subtitle}</AppText>

@@ -110,7 +110,7 @@ export default function MatchHub() {
                     </ScoreRing>
                     <View style={{ flex: 1 }}>
                       <AppText variant="subtitle">{item.partner_name}</AppText>
-                      <AppText variant="caption" muted style={{ textTransform: "capitalize" }}>{item.relation || "relationship"} · out of 36 Gunas</AppText>
+                      <AppText variant="caption" muted style={{ textTransform: "capitalize" }}>{`${item.relation || "relationship"} · out of 36 Gunas`}</AppText>
                     </View>
                   </View>
                 </Animated.View>
