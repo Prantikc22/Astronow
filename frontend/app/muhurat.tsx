@@ -54,7 +54,7 @@ export default function Muhurat() {
             <Animated.View key={a.id} entering={pop(i, 40)} style={[styles.cellWrap, { width: cellWidth }]}>
               <MotionPressable onPress={() => setActivity(a.id)} style={[styles.cell, on && styles.cellOn]} testID={`muhurat-${a.id}`} accessibilityState={{ selected: on }}>
                 <Icon name={a.icon} size={20} color={on ? colors.goldSoft : colors.muted} weight={on ? "fill" : "regular"} />
-                <AppText variant="caption" center numberOfLines={2} style={{ color: on ? colors.onSurface : colors.muted, marginTop: 6 }}>{a.label}</AppText>
+                <AppText variant="caption" center style={{ color: on ? colors.onSurface : colors.muted, marginTop: 6 }}>{a.label}</AppText>
               </MotionPressable>
             </Animated.View>
           );

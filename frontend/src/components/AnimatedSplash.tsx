@@ -35,9 +35,9 @@ export function splashRemaining() {
 function Letter({ char, index }: { char: string; index: number }) {
   const t = useSharedValue(0);
   useEffect(() => {
-    t.value = withDelay(820 + index * 70, withTiming(1, { duration: 520, easing: Easing.bezier(0.16, 1, 0.3, 1) }));
+    t.value = withDelay(760 + index * 60, withTiming(1, { duration: 640, easing: Easing.bezier(0.22, 1, 0.36, 1) }));
   }, [t, index]);
-  const style = useAnimatedStyle(() => ({ opacity: t.value, transform: [{ translateY: (1 - t.value) * 14 }, { scale: 0.9 + t.value * 0.1 }] }));
+  const style = useAnimatedStyle(() => ({ opacity: t.value, transform: [{ translateY: (1 - t.value) * 6 }] }));
   return <Animated.Text style={[styles.letter, style]}>{char}</Animated.Text>;
 }
 
@@ -56,6 +56,23 @@ function Orbit({ size, delay, duration, dot, reverse }: { size: number; delay: n
     <Animated.View style={[styles.orbit, { width: size, height: size, borderRadius: size / 2 }, style]}>
       <View style={[styles.planet, { backgroundColor: dot, shadowColor: dot, left: size / 2 - 4 }]} />
     </Animated.View>
+  );
+}
+
+/** A gold hairline that draws outward from a small star under the wordmark. */
+function Hairline() {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.value = withDelay(1350, withTiming(1, { duration: 700, easing: Easing.bezier(0.22, 1, 0.36, 1) }));
+  }, [t]);
+  const line = useAnimatedStyle(() => ({ width: t.value * 64, opacity: t.value }));
+  const star = useAnimatedStyle(() => ({ opacity: t.value, transform: [{ rotate: `${(1 - t.value) * 90}deg` }] }));
+  return (
+    <View style={styles.hairline} pointerEvents="none">
+      <Animated.View style={[styles.rule, line]} />
+      <Animated.Text style={[{ color: "#F2C879", fontSize: 10 }, star]}>✦</Animated.Text>
+      <Animated.View style={[styles.rule, line]} />
+    </View>
   );
 }
 
@@ -127,8 +144,9 @@ export function AnimatedSplash({ ready, onDone }: { ready: boolean; onDone: () =
         <Animated.View style={[styles.word, wordStyle]}>
           {reduced ? <AppText style={styles.letter}>{WORD}</AppText> : WORD.split("").map((c, i) => <Letter key={i} char={c} index={i} />)}
         </Animated.View>
+        <Hairline />
         <Animated.View style={[styles.tag, tagStyle]}>
-          <AppText variant="caption" style={{ color: "rgba(248,242,232,0.62)", letterSpacing: 1.6 }}>YOUR SKY, READ FOR YOU</AppText>
+          <AppText style={styles.tagText}>YOUR SKY  ·  READ FOR YOU</AppText>
         </Animated.View>
       </View>
     </Animated.View>
@@ -142,7 +160,11 @@ const styles = StyleSheet.create({
   orbits: { position: "absolute", alignItems: "center", justifyContent: "center" },
   orbit: { position: "absolute", borderWidth: 1, borderColor: "rgba(242,200,121,0.22)" },
   planet: { position: "absolute", top: -4, width: 8, height: 8, borderRadius: 4, shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } },
-  word: { position: "absolute", flexDirection: "row", marginTop: 150 },
-  letter: { fontFamily: fonts.displayStrong, fontSize: 30, color: "#F8F2E8", letterSpacing: 6 },
-  tag: { position: "absolute", marginTop: 222 },
+  word: { position: "absolute", flexDirection: "row", marginTop: 148 },
+  // Wide-tracked champagne capitals in a high-contrast display serif.
+  letter: { fontFamily: fonts.wordmark, fontSize: 34, lineHeight: 42, color: "#F2E4C4", letterSpacing: 9 },
+  hairline: { position: "absolute", marginTop: 222, flexDirection: "row", alignItems: "center", gap: 8 },
+  rule: { height: StyleSheet.hairlineWidth * 2, backgroundColor: "rgba(242,200,121,0.55)" },
+  tag: { position: "absolute", marginTop: 262 },
+  tagText: { fontFamily: fonts.semibold, fontSize: 10, letterSpacing: 3.2, color: "rgba(242,228,196,0.62)" },
 });

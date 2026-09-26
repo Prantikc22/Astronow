@@ -50,6 +50,7 @@ const previewRuntime = globalThis as typeof globalThis & {
   __astronowPreviewProfile?: typeof previewProfile;
   __astronowFamily?: any[];
   __astronowBonus?: number;
+  __astronowReportPolls?: number;
 };
 let previewCurrentProfile = previewRuntime.__astronowPreviewProfile || { ...previewProfile };
 
@@ -65,7 +66,9 @@ const chart = {
 
 const products = [
   { id: "monthly", period: "month", ref_price: { INR: "₹299", USD: "$7.99" } },
-  { id: "annual", period: "year", recommended: true, badge: "BEST VALUE", ref_price: { INR: "₹1,999", USD: "$39.99" } },
+  { id: "annual", period: "year", recommended: true, badge: "BEST VALUE", ref_price: { INR: "₹2,499", USD: "$49.99" } },
+  { id: "questions_10", period: "one_time", type: "questions", count: 10, ref_price: { INR: "₹199", USD: "$2.99" } },
+  { id: "questions_30", period: "one_time", type: "questions", count: 30, badge: "BEST VALUE", ref_price: { INR: "₹449", USD: "$5.99" } },
   { id: "report_match", period: "one_time", type: "report", ref_price: { INR: "₹249", USD: "$2.99" }, list_price: { INR: "₹498", USD: "$5.98" }, discount: "50% OFF" },
   { id: "report_artha_strategy", period: "one_time", type: "report", ref_price: { INR: "₹299", USD: "$3.99" }, list_price: { INR: "₹598", USD: "$7.98" }, discount: "50% OFF" },
   { id: "report_12_year_compass", period: "one_time", type: "report", ref_price: { INR: "₹399", USD: "$4.99" }, list_price: { INR: "₹798", USD: "$9.98" }, discount: "50% OFF" },
@@ -87,7 +90,7 @@ export async function previewRequest(method: string, path: string, body?: any): 
   await new Promise((resolve) => setTimeout(resolve, method === "GET" ? 180 : 320));
   if (path === "/auth/me") return { user: { id: "preview-user", email: "preview@astronow.app" }, profile: previewCurrentProfile, onboarded: true, entitlement: { tier: "free", premium: false, source: "preview" } };
   if (path.startsWith("/terminology")) return { mode: "both", terms: { kundli: "Birth Chart · Kundli", nakshatra: "Birth Star · Nakshatra", mahadasha: "Major Life Period · Mahadasha", gochar: "Transit · Gochar", guna_milan: "Compatibility · Guna Milan", vastu: "Vastu Home Analysis", muhurat: "Auspicious Timing · Muhurat", panchang: "Daily Calendar · Panchang", lagna: "Ascendant · Lagna", tithi: "Tithi", yoga: "Yoga", karana: "Karana" } };
-  if (path === "/config") return { feature_flags: { lifetime_offer: false }, free_chat_allowance: 10, fairuse_daily_messages: 40, paywall: { products }, persistence_enabled: false, preview: true };
+  if (path === "/config") return { feature_flags: { lifetime_offer: false }, free_chat_allowance: 10, fairuse_daily_messages: 25, paywall: { products }, persistence_enabled: false, preview: true };
   if (path.startsWith("/geo/search")) {
     const query = new URL(path, "https://preview.local").searchParams.get("q") || "Kolkata";
     return { results: [{ place_id: "preview-city", description: `${query}, India` }] };
@@ -190,6 +193,21 @@ export async function previewRequest(method: string, path: string, body?: any): 
         : { date: iso, weekday, score, locked: true };
     });
     return { activity: "travel", label: "Travel", premium: false, results };
+  }
+  if (path.startsWith("/reports/") && path.endsWith("/personal")) {
+    const polls = (previewRuntime.__astronowReportPolls = (previewRuntime.__astronowReportPolls || 0) + 1);
+    if (polls < 2) return { status: "generating" };
+    return { status: "ready", report: {
+      title: "Career Blueprint",
+      intro: "Maya, this report is built from your Aries ascendant, Taurus Moon in the 2nd house and your current Moon–Jupiter period. It reads your chart as a map of tendencies, not a fixed script.",
+      sections: [
+        { title: "How you are built to work", body: "Mars in Virgo in your 6th house makes you a precise, steady worker who improves systems others overlook.\n\nWith the Sun and Mercury together in Leo in the 5th, you do your best work when you can see your own ideas take shape." },
+        { title: "Where you shine", body: "Jupiter in Sagittarius in the 9th favours teaching, advising and work with a sense of meaning. People trust your judgement once they see your consistency." },
+        { title: "Timing for moves and promotions", body: "The Jupiter sub-period running until mid-2027 supports learning and mentorship. The Saturn sub-period that follows rewards patient, structured moves rather than sudden jumps." },
+      ],
+      key_dates: [{ when: "Now – June 2027", what: "Moon–Jupiter: grow skills and find a mentor." }, { when: "June 2027 – 2028", what: "Moon–Saturn: consolidate, formalise and ask for responsibility." }],
+      closing: "Your chart favours depth over speed. Choose the path that can keep growing with you.",
+    } };
   }
   if (path === "/account" && method === "DELETE") return { deleted: true };
   return {};

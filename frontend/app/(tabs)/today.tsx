@@ -162,7 +162,7 @@ export default function Today() {
               {streak ? <StreakChip days={streak.days} fresh={streak.isNew} /> : null}
             </View>
             <AppText variant="caption" muted style={{ marginTop: 14 }}>{active ? `${active.relation ? active.relation + " · " : ""}Family profile` : localGreeting(now.getHours(), language)}</AppText>
-            <AppText variant="display" numberOfLines={1} style={{ fontSize: 30, lineHeight: 36 }}>{active ? `${name}'s day` : name}</AppText>
+            <AppText variant="display" numberOfLines={2} style={{ fontSize: 30, lineHeight: 36 }}>{active ? `${name}'s day` : name}</AppText>
           </Animated.View>
 
           <Animated.View entering={rise(0)} style={{ marginTop: 18 }}>
@@ -242,7 +242,7 @@ export default function Today() {
                           <CountUp value={pct} suffix="%" variant="subtitle" delay={300 + i * 90} />
                         </View>
                         <AppText variant="label" style={{ color: colors.muted, marginTop: 14, letterSpacing: 0.8 }}>{area.title.toUpperCase()}</AppText>
-                        <AppText variant="body" numberOfLines={1} style={{ marginTop: 2 }}>{energyTerm(meter.label, language)}</AppText>
+                        <AppText variant="body" style={{ marginTop: 2 }}>{energyTerm(meter.label, language)}</AppText>
                         <View style={{ marginTop: 12 }}><ProgressBar value={pct / 100} delay={300 + i * 90} colors={area.tint} height={5} /></View>
                       </MotionPressable>
                     );
@@ -340,7 +340,7 @@ export default function Today() {
                         body="Upload a floor plan or draw it in the app. Get a room-by-room score." price="Free score" cta="Start"
                         icon="home" colors={["#123A3E", "#171335"]} onPress={() => router.push("/vastu" as any)} />,
                       ...(!entitlement.premium ? [<PromoCard key="plus" kicker="ASTRONOW PLUS" title="Every core report. Daily guidance from Tara."
-                        body={`${REPORTS.filter((r) => r.access === "plus").length} deep reports and up to 40 messages a day.`} price={displayCurrency() === "INR" ? "Under ₹6/day" : "Under 11¢/day"} icon="crown" colors={["#2F2462", "#15122E"]} onPress={() => router.push("/paywall")} />] : []),
+                        body={`${REPORTS.filter((r) => r.access === "plus").length} deep reports and up to 25 questions a day.`} price={displayCurrency() === "INR" ? "Under ₹7/day" : "About 14¢/day"} icon="crown" colors={["#2F2462", "#15122E"]} onPress={() => router.push("/paywall")} />] : []),
                     ]}
                   </Carousel>
                 </View>
@@ -560,7 +560,7 @@ function Marker({ label, value }: { label: string; value?: string }) {
   return (
     <View style={styles.marker}>
       <AppText variant="caption" muted>{label}</AppText>
-      <AppText variant="label" numberOfLines={1} style={{ marginTop: 2, fontSize: 13 }}>{value || "—"}</AppText>
+      <AppText variant="label" style={{ marginTop: 2, fontSize: 13 }}>{value || "—"}</AppText>
     </View>
   );
 }

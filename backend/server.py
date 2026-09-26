@@ -19,6 +19,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 import ai_gateway
 import growth
+import report_ai
 import config
 import context_engine
 import daily_reading
@@ -1243,6 +1244,143 @@ async def muhurat(activity: str, user: dict = User, days: int = 21):
             results.append({"date": r["date"], "weekday": r["weekday"], "score": r["score"], "locked": True})
     await _track(user["id"], "muhurat_searched", {"activity": activity})
     return {"activity": activity, "label": growth.ACTIVITIES[activity]["label"], "premium": ent["premium"], "results": results}
+
+
+# --------------------------------------------------------------------------- #
+# Store purchases (RevenueCat) for one-time products
+# --------------------------------------------------------------------------- #
+_rc_cache: dict[str, tuple[dict, float]] = {}
+QUESTION_PACKS = {"questions_10": 10, "questions_30": 30}
+REPORT_PRODUCTS = {"artha-strategy": "report_artha_strategy", "twelve-year-compass": "report_12_year_compass"}
+
+
+async def _rc_non_subscriptions(user_id: str, fresh: bool = False) -> Optional[dict]:
+    """{product_id: [transactions]} from RevenueCat, or None if verification isn't configured."""
+    if not RC_SECRET:
+        return None
+    hit = _rc_cache.get(user_id)
+    if hit and not fresh and hit[1] > time.monotonic():
+        return hit[0]
+    r = await ai_gateway._client().get(f"https://api.revenuecat.com/v1/subscribers/{user_id}",
+                                       headers={"Authorization": f"Bearer {RC_SECRET}"}, timeout=20)
+    if r.status_code != 200:
+        raise HTTPException(502, "Could not verify purchases with the store right now.")
+    subs = r.json().get("subscriber", {}).get("non_subscriptions", {}) or {}
+    _rc_cache[user_id] = (subs, time.monotonic() + 60.0)
+    return subs
+
+
+async def _owns_product(user_id: str, product_id: str) -> bool:
+    subs = await _rc_non_subscriptions(user_id)
+    if subs is None:
+        raise HTTPException(503, "Purchase verification is not configured on the server.")
+    return any(product_id in key for key in subs)
+
+
+@api.post("/questions/sync")
+async def questions_sync(user: dict = User):
+    """Credits verified question-pack purchases exactly once per store transaction."""
+    _require_db()
+    subs = await _rc_non_subscriptions(user["id"], fresh=True)
+    if subs is None:
+        raise HTTPException(503, "Purchase verification is not configured on the server.")
+    added = 0
+    for product_id, transactions in subs.items():
+        count = next((n for key, n in QUESTION_PACKS.items() if key in product_id), None)
+        if not count:
+            continue
+        for tx in transactions or []:
+            tx_id = str(tx.get("id") or tx.get("store_transaction_id") or "")
+            kind = f"question_pack:{tx_id}"
+            if not tx_id or await db.one("saved_items", "id", filters={"user_id": user["id"], "kind": kind}):
+                continue
+            await db.insert("saved_items", {"user_id": user["id"], "kind": kind, "payload": {"product": product_id, "count": count}})
+            await db.insert("saved_items", {"user_id": user["id"], "kind": "bonus_questions",
+                                            "payload": {"count": count, "remaining": count, "reason": product_id}})
+            added += count
+    if added:
+        await _track(user["id"], "question_pack_credited", {"count": added})
+    return {"added": added, "usage": await _usage(user["id"])}
+
+
+# --------------------------------------------------------------------------- #
+# Personal AI reports
+# --------------------------------------------------------------------------- #
+_report_tasks: dict[str, asyncio.Task] = {}
+
+
+def _report_context(data: dict, tr: dict, numerology: Optional[dict]) -> dict:
+    chart, dasha = data["chart"], data.get("dasha") or {}
+    day = lambda v: str(v or "")[:10]  # noqa: E731 - dates only keep the context compact
+    md = dasha.get("current_mahadasha") or {}
+    now = datetime.now(timezone.utc).isoformat()
+    upcoming_sub = [{"lord": a["lord"], "start": day(a["start"]), "end": day(a["end"])}
+                    for a in md.get("antardashas", []) if str(a.get("end", "")) > now][:6]
+    later = [{"lord": m["lord"], "start": day(m["start"]), "end": day(m["end"])}
+             for m in dasha.get("mahadashas", []) if str(m.get("start", "")) > now][:3]
+    return {
+        "today": date.today().isoformat(),
+        "ascendant": (chart.get("lagna") or {}).get("sign"), "moon_sign": chart.get("moon_sign"),
+        "moon_nakshatra": chart.get("moon_nakshatra"), "sun_sign": chart.get("sun_sign"),
+        "birth_time_known": chart.get("birth_time_known"),
+        "planets": [{k: p.get(k) for k in ("name", "sign", "house", "nakshatra", "retrograde")} for p in chart.get("planets", [])],
+        "yogas": [y.get("name") for y in chart.get("yogas", [])], "doshas": chart.get("doshas", []),
+        "current_period": {"mahadasha": md.get("lord"), "until": day(md.get("end")),
+                           "antardasha": (dasha.get("current_antardasha") or {}).get("lord"),
+                           "antardasha_until": day((dasha.get("current_antardasha") or {}).get("end"))},
+        "upcoming_sub_periods": upcoming_sub, "next_major_periods": later,
+        "transits_from_moon": [{k: t.get(k) for k in ("planet", "sign", "house_from_moon", "retrograde")} for t in tr.get("transits", [])],
+        "numerology": numerology,
+    }
+
+
+async def _generate_report(cache_key: str, user_id: str, slug: str, request: str) -> None:
+    try:
+        for attempt in range(2):
+            try:
+                out = await ai_gateway.generate_json(prompts.SYSTEM_PROMPT, request, tier="deep", retries=0,
+                                                     user_id=user_id, feature=f"report:{slug}")
+            except (ai_gateway.AIUnavailable, ValueError):
+                out = None
+            if report_ai.valid_report(out, slug):
+                await db.insert("saved_items", {"user_id": user_id, "kind": cache_key, "payload": out})
+                await _track(user_id, "personal_report_generated", {"slug": slug})
+                return
+            logger.warning("Report %s generation attempt %s invalid", slug, attempt + 1)
+    except Exception:  # noqa: BLE001 - background work must never crash the server
+        logger.exception("Personal report generation failed")
+    finally:
+        _report_tasks.pop(f"{user_id}:{cache_key}", None)
+
+
+@api.get("/reports/{slug}/personal")
+async def personal_report(slug: str, user: dict = User):
+    _require_db()
+    if slug not in report_ai.BRIEFS:
+        raise HTTPException(404, "Report not found.")
+    if slug in REPORT_PRODUCTS:
+        allowed = await _owns_product(user["id"], REPORT_PRODUCTS[slug])
+    else:
+        allowed = (await get_entitlement(user["id"]))["premium"]
+    if not allowed:
+        raise HTTPException(402, json.dumps({"paywall": True, "reason": "Your personal report unlocks with AstroNow Plus."}))
+    data, profile = await asyncio.gather(load_chart(user["id"]), get_profile(user["id"], with_changes=False))
+    if not data:
+        raise HTTPException(404, "Complete onboarding first.")
+    language = (profile or {}).get("language") or "en"
+    chart_version = str(data.get("computed_at") or "v1").replace(":", "-")
+    cache_key = f"report:v1:{slug}:{language}:{chart_version}"
+    cached = await db.one("saved_items", "payload", filters={"user_id": user["id"], "kind": cache_key})
+    if cached and report_ai.valid_report(cached.get("payload"), slug):
+        return {"status": "ready", "report": cached["payload"]}
+    task_key = f"{user['id']}:{cache_key}"
+    if task_key not in _report_tasks:
+        tr = transit_mod.compute_transits(data["chart"])
+        ctx = _report_context(data, tr, data.get("numerology"))
+        request = report_ai.report_prompt(slug, (profile or {}).get("first_name") or "friend",
+                                          (profile or {}).get("terminology_mode", "both"), language, json.dumps(ctx, default=str))
+        _report_tasks[task_key] = asyncio.create_task(_generate_report(cache_key, user["id"], slug, request))
+    return {"status": "generating"}
 
 
 @api.get("/")

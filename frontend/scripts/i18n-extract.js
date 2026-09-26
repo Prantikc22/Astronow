@@ -14,7 +14,7 @@ const DIRS = ["app", "src"];
 const SKIP = [/src[\\/]api[\\/]preview\.ts$/, /src[\\/]i18n[\\/]/, /error-boundary\.tsx$/];
 // Props whose string values are shown to people (not ids or styles).
 const TEXT_PROPS = new Set(["label", "title", "subtitle", "placeholder", "eyebrow", "action", "kicker", "note", "detail",
-  "sub", "body", "cta", "copy", "text", "message", "caption", "question", "reason", "fallbackTitle", "colorName", "tone", "q", "planet"]);
+  "sub", "body", "cta", "copy", "text", "message", "caption", "question", "reason", "fallbackTitle", "colorName", "tone", "q", "planet", "period", "save"]);
 
 // Sentences the API generates in English; the app translates them on render.
 const SERVER_TEMPLATES = [

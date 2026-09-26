@@ -108,25 +108,26 @@ async def generate_json(system: str, user: str, tier: str = "deep",
         "temperature": 0.2,
         "response_format": {"type": "json_object"},
     }
-    async with httpx.AsyncClient(timeout=120) as c:
-        for attempt in range(retries + 1):
-            r = await c.post(_URL, headers=_headers(), json=payload)
-            if r.status_code != 200:
-                if attempt < retries:
-                    continue
-                raise AIUnavailable()
-            data = r.json()
-            await _log_usage(user_id, feature, model, data.get("usage", {}))
-            txt = data["choices"][0]["message"]["content"]
-            try:
-                return json.loads(txt)
-            except json.JSONDecodeError:
-                if attempt < retries:
-                    continue
-                start, end = txt.find("{"), txt.rfind("}")
-                if start >= 0 and end > start:
-                    return json.loads(txt[start:end + 1])
-                raise AIUnavailable()
+    # Long-form reports can take ~2 minutes to write; keep well clear of that.
+    c = _client()
+    for attempt in range(retries + 1):
+        r = await c.post(_URL, headers=_headers(), json=payload, timeout=httpx.Timeout(300.0, connect=10.0))
+        if r.status_code != 200:
+            if attempt < retries:
+                continue
+            raise AIUnavailable()
+        data = r.json()
+        await _log_usage(user_id, feature, model, data.get("usage", {}))
+        txt = data["choices"][0]["message"]["content"]
+        try:
+            return json.loads(txt)
+        except json.JSONDecodeError:
+            if attempt < retries:
+                continue
+            start, end = txt.find("{"), txt.rfind("}")
+            if start >= 0 and end > start:
+                return json.loads(txt[start:end + 1])
+            raise AIUnavailable()
     raise AIUnavailable()
 
 

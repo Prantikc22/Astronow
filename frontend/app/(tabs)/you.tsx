@@ -34,7 +34,7 @@ function Stat({ icon, color, value, label }: { icon: FeatherName; color: string;
   return (
     <View style={styles.stat}>
       <Icon name={icon} size={18} color={color} weight="fill" />
-      <AppText variant="subtitle" numberOfLines={1} style={{ marginTop: 6, fontSize: 16 }}>{value}</AppText>
+      <AppText variant="subtitle" center style={{ marginTop: 6, fontSize: 15, lineHeight: 20 }}>{value}</AppText>
       <AppText variant="caption" muted>{label}</AppText>
     </View>
   );
@@ -138,7 +138,7 @@ export default function You() {
             <View style={{ flex: 1 }}>
               <AppText variant="title">{profile?.first_name || "Traveller"}</AppText>
               <AppText variant="caption" muted numberOfLines={1}>{user?.email || "Your private space"}</AppText>
-              {profile?.birthplace ? <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}><Icon name="map-pin" size={12} color={colors.muted} /><AppText variant="caption" muted numberOfLines={1}>{profile.birthplace}</AppText></View> : null}
+              {profile?.birthplace ? <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}><Icon name="map-pin" size={12} color={colors.muted} /><AppText variant="caption" muted style={{ flex: 1 }}>{profile.birthplace}</AppText></View> : null}
             </View>
           </View>
           <View style={styles.signs}>
@@ -172,7 +172,7 @@ export default function You() {
             <LinearGradient colors={[colors.goldSoft, colors.gold]} style={styles.planIcon}><Icon name="crown" size={20} color={colors.ink} weight="fill" /></LinearGradient>
             <View style={{ flex: 1 }}>
               <AppText variant="subtitle">{entitlement.premium ? "AstroNow Plus" : "Upgrade to AstroNow Plus"}</AppText>
-              <AppText variant="caption" muted>{entitlement.premium ? `Active · ${entitlement.tier.replace("_", " ")}` : "All reports, 40 questions a day, every tool"}</AppText>
+              <AppText variant="caption" muted>{entitlement.premium ? `Active · ${entitlement.tier.replace("_", " ")}` : "All reports, 25 questions a day, every tool"}</AppText>
             </View>
             {!entitlement.premium ? <Icon name="arrow-right" size={18} color={colors.goldSoft} /> : <Icon name="check-circle" size={20} color={colors.goldSoft} weight="fill" />}
             {!entitlement.premium ? <Shine every={3400} opacity={0.18} /> : null}

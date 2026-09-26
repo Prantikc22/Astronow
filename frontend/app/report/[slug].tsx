@@ -11,6 +11,7 @@ import { BrandMark } from "@/src/components/BrandMark";
 import { Button } from "@/src/components/Button";
 import { Icon } from "@/src/components/Icon";
 import { ErrorState, Loading, Screen } from "@/src/components/Screen";
+import { Skeleton } from "@/src/components/Skeleton";
 import { REPORTS, reportDisplay, reportPrice, reportSections } from "@/src/content/reports";
 import { getCustomerInfo, hasPurchasedProduct } from "@/src/services/purchases";
 import { useAuth } from "@/src/store/auth";
@@ -44,6 +45,17 @@ export default function ReportDetail() {
   const price = reportPrice(report);
   const listPrice = reportPrice(report, true);
   const hasFullReport = isAddon ? hasPurchasedProduct(customerInfo, report.productId) : entitlement.premium || report.access === "free";
+  const language = profile?.language || "en";
+  // Paid readers get a report written from their own chart; it's generated once and cached.
+  const personal = useQuery({
+    queryKey: ["personal-report", report.slug, language],
+    queryFn: () => api.get(`/reports/${report.slug}/personal`),
+    enabled: hasFullReport && report.slug !== "match-report",
+    refetchInterval: (query) => query.state.data?.status === "generating" ? 4000 : false,
+    retry: false,
+  });
+  const written = personal.data?.status === "ready" ? personal.data.report : null;
+  const writing = hasFullReport && (personal.isLoading || personal.data?.status === "generating");
 
   return <Screen title={display.title} subtitle="Personalised from your saved birth details" back>
     {isLoading ? <Loading /> : null}
@@ -66,7 +78,24 @@ export default function ReportDetail() {
         <View style={{ flex: 1 }}><AppText variant="subtitle">Built from your actual chart</AppText><AppText variant="caption" muted style={{ marginTop: 3 }}>Personalised from your saved birth details</AppText></View>
       </View>
 
-      {sections.map(([title, body], index) => {
+      {written ? <PersonalReport report={written} name={profile?.first_name || "you"} /> : null}
+      {writing ? <WritingState /> : null}
+      {hasFullReport && personal.isError ? (
+        <View style={styles.unlockCard}>
+          <Icon name="alert-circle" size={22} color={colors.coralSoft} />
+          <AppText variant="subtitle" center style={{ marginTop: 10 }}>We couldn&apos;t prepare your personal report just now</AppText>
+          <AppText variant="caption" muted center style={{ marginTop: 6 }}>{(personal.error as any)?.message || "Please try again in a moment."}</AppText>
+          <Button label="Try again" variant="secondary" onPress={() => personal.refetch()} style={{ marginTop: 14 }} />
+        </View>
+      ) : null}
+
+      {!hasFullReport ? (
+        <View style={styles.sampleBanner}>
+          <Icon name="eye" size={16} color={colors.goldSoft} />
+          <AppText variant="caption" style={{ flex: 1, color: colors.onSurface }}>{isAddon ? "Sample preview. Your full report is written from your exact chart after purchase." : "Sample preview. With Plus, this whole report is written personally from your exact chart."}</AppText>
+        </View>
+      ) : null}
+      {!hasFullReport ? sections.map(([title, body], index) => {
         const locked = !hasFullReport && index > 0;
         return <Animated.View key={title} entering={FadeInDown.delay(70 + index * 50).duration(420)} style={styles.section}>
           <View style={styles.sectionNumber}><AppText variant="label" style={{ color: colors.gold }}>{String(index + 1).padStart(2, "0")}</AppText></View>
@@ -76,7 +105,7 @@ export default function ReportDetail() {
               : <AppText variant="body" muted style={{ marginTop: 10, lineHeight: 26 }}>{body}</AppText>}
           </View>
         </Animated.View>;
-      })}
+      }) : null}
 
       {!hasFullReport ? <View style={styles.unlockCard}>
         <Icon name="star" size={25} color={colors.gold} weight="duotone" />
@@ -91,7 +120,80 @@ export default function ReportDetail() {
   </Screen>;
 }
 
+function PersonalReport({ report, name }: { report: any; name: string }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  return (
+    <View style={{ gap: 14 }}>
+      <Animated.View entering={FadeInDown.duration(420)} style={styles.writtenFor}>
+        <Icon name="sparkle" size={16} color={colors.goldSoft} weight="fill" />
+        <AppText variant="caption" style={{ flex: 1, color: colors.onSurface }}>{`Written for ${name} from your exact birth chart`}</AppText>
+      </Animated.View>
+      {report.intro ? <AppText variant="body" style={{ lineHeight: 26, color: colors.onSurface }}>{report.intro}</AppText> : null}
+      {(report.sections || []).map((section: any, index: number) => (
+        <Animated.View key={index} entering={FadeInDown.delay(60 + index * 50).duration(420)} style={styles.section}>
+          <View style={styles.sectionNumber}><AppText variant="label" style={{ color: colors.gold }}>{String(index + 1).padStart(2, "0")}</AppText></View>
+          <View style={{ flex: 1 }}>
+            <AppText variant="title">{section.title}</AppText>
+            {String(section.body || "").split(/\n\n+/).map((para: string, i: number) => (
+              <AppText key={i} variant="body" style={{ marginTop: 10, lineHeight: 26, color: "rgba(248,242,232,0.86)" }}>{para.trim()}</AppText>
+            ))}
+          </View>
+        </Animated.View>
+      ))}
+      {report.key_dates?.length ? (
+        <View style={styles.dates}>
+          <AppText variant="title" style={{ fontSize: 20 }}>Key dates</AppText>
+          {report.key_dates.map((d: any, i: number) => (
+            <View key={i} style={styles.dateRow}>
+              <View style={styles.dateDot} />
+              <View style={{ flex: 1 }}>
+                <AppText variant="label" style={{ color: colors.goldSoft }}>{d.when}</AppText>
+                <AppText variant="body" style={{ marginTop: 3, lineHeight: 23 }}>{d.what}</AppText>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {report.closing ? <AppText variant="body" center style={{ fontFamily: "Fraunces-Medium", fontSize: 18, lineHeight: 27, marginTop: 6 }}>{report.closing}</AppText> : null}
+    </View>
+  );
+}
+
+const WRITING_STEPS = ["Reading your planets and houses…", "Mapping your life periods…", "Checking the transits ahead…", "Writing your report…", "Adding your key dates…"];
+
+function WritingState() {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const [step, setStep] = React.useState(0);
+  React.useEffect(() => {
+    const id = setInterval(() => setStep((n) => Math.min(n + 1, WRITING_STEPS.length - 1)), 9000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <View style={styles.writing}>
+      <BrandMark size={46} />
+      <Animated.View key={step} entering={FadeInDown.duration(360)}>
+        <AppText variant="subtitle" center style={{ marginTop: 14 }}>{WRITING_STEPS[step]}</AppText>
+      </Animated.View>
+      <AppText variant="caption" muted center style={{ marginTop: 6 }}>Your personal report takes a minute or two the first time. You can leave this screen; it will be ready when you return.</AppText>
+      <View style={{ alignSelf: "stretch", gap: 8, marginTop: 18 }}>
+        {[100, 92, 84, 96, 70].map((w, i) => <Skeleton key={i} width={`${w}%`} height={12} radius={6} />)}
+      </View>
+      <View style={[styles.writingBar]}><Animated.View style={[styles.writingFill, { width: `${((step + 1) / WRITING_STEPS.length) * 100}%`, backgroundColor: colors.goldSoft }]} /></View>
+    </View>
+  );
+}
+
 const useStyles = makeStyles((colors) => ({
+  sampleBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13, borderRadius: 12, backgroundColor: "rgba(242,200,121,0.08)", borderWidth: 1, borderColor: "rgba(242,200,121,0.3)" },
+  writtenFor: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, backgroundColor: "rgba(242,200,121,0.08)" },
+  writing: { alignItems: "center", padding: 22, borderRadius: radii.xl, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.glassBorder },
+  writingBar: { alignSelf: "stretch", height: 3, borderRadius: 2, marginTop: 18, backgroundColor: "rgba(235,226,250,0.1)", overflow: "hidden" },
+  writingFill: { height: 3, borderRadius: 2 },
+  dates: { padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border, gap: 14 },
+  dateRow: { flexDirection: "row", gap: 12 },
+  dateDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5, backgroundColor: colors.coral },
   content: { gap: 15, paddingTop: 8 },
   cover: { height: 330, borderRadius: radii.xl, overflow: "hidden", borderWidth: 1, borderColor: colors.borderStrong },
   coverFill: { flex: 1, padding: 22, overflow: "hidden" },

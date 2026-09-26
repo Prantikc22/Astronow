@@ -33,7 +33,8 @@ function Letter({ char, index, reduced, base }: { char: string; index: number; r
     transform: [{ translateY: (1 - t.value) * 10 }],
   }));
   const isNow = index >= 5;
-  return <Animated.Text style={[{ fontFamily: fonts.displayStrong, fontSize: 40, lineHeight: 48, color: isNow ? "#F7DDA6" : "#F8F2E8", letterSpacing: 0.4 }, style]}>{char}</Animated.Text>;
+  // "Astro" upright in ivory, "Now" in champagne italic: a quiet, editorial wordmark.
+  return <Animated.Text style={[{ fontFamily: isNow ? fonts.wordmarkItalic : fonts.wordmark, fontSize: 46, lineHeight: 54, color: isNow ? "#EBC98A" : "#F5EEDF", letterSpacing: 0.6 }, style]}>{char}</Animated.Text>;
 }
 
 /**

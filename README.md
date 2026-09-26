@@ -22,7 +22,7 @@ Ask has one consistent guide, **Tara** ("star"). She is clearly identified as AI
 
 The AstroNow aperture mark combines an eye, orbit and north-star spark. Its editable source is `frontend/assets/images/brand/astronow-aperture.svg`; store icon, adaptive icon and splash outputs live beside it. The design takes cues from editorial calm and personal daily guidance without copying the supplied reference apps or their artwork.
 
-The product uses a hybrid model: the daily sky, basic chart, a report preview and 10 Tara messages per calendar month are free. AstroNow Plus targets ₹299/month or ₹1,999/year (reference prices, not live store offers), with the reusable core report library, up to 40 messages per rolling day and deeper interpretations. Signature one-time reports display a transparent 50% launch discount: Match Report ₹249 (₹498 list), Artha Strategy ₹299 (₹598 list), and the 12-Year Compass ₹399 (₹798 list). One birth-detail correction is included and enforced by the API. The legacy lifetime tier remains recognized for existing owners, but is no longer offered because AI usage has ongoing costs.
+The product uses a hybrid model: the daily sky, basic chart, a report preview and 10 Tara messages per calendar month are free. AstroNow Plus targets ₹299/month or ₹2,499/year (reference prices, not live store offers), with personal AI-written core reports, up to 25 messages per rolling day and deeper interpretations. Question packs (10 for ₹199, 30 for ₹449) serve people who prefer not to subscribe. Signature one-time reports display a transparent 50% launch discount: Match Report ₹249 (₹498 list), Artha Strategy ₹299 (₹598 list), and the 12-Year Compass ₹399 (₹798 list). One birth-detail correction is included and enforced by the API. The legacy lifetime tier remains recognized for existing owners, but is no longer offered because AI usage has ongoing costs.
 
 ## Quick UI preview with Expo Go
 
@@ -145,3 +145,9 @@ AstroNow provides astrology and spiritual reflection, not medical, legal or fina
 - **Social proof on the paywall** renders only when real numbers exist. Add a row to `app_config` with key `social_proof`, for example:
   `{"rating": "4.7", "reviews": "1,240", "users": "25,000+", "testimonials": [{"quote": "…", "name": "Ananya", "detail": "Pune"}]}`
 - A home-screen widget needs a native development build (WidgetKit / Android App Widgets) and is not part of the Expo Go build.
+
+## Personal reports and question packs
+
+- **Personal reports** (`/api/reports/{slug}/personal`): Plus members (and buyers of Artha Strategy or the 12-Year Compass) get a report written from their own chart by the deep model, following a fixed outline per report (`backend/report_ai.py`). It is generated once in the background (about 1-2 minutes), cached per chart, language and version, and the app polls until it is ready. Free users see the template sample with the rest locked.
+- **Question packs** (`questions_10`, `questions_30`): consumable store products. After purchase the app calls `/api/questions/sync`, which verifies transactions with RevenueCat and credits each one exactly once as bonus questions.
+- Both need `REVENUECAT_SECRET_KEY` in `backend/.env` to verify purchases server-side, and the products must exist in App Store Connect / Play Console and the RevenueCat offering.

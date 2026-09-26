@@ -44,7 +44,7 @@ export function Screen({
           </MotionPressable>
         ) : null}
         <View style={{ flex: 1 }}>
-          <AppText variant="title" numberOfLines={1}>{title}</AppText>
+          <AppText variant="title" numberOfLines={2}>{title}</AppText>
           {subtitle ? <AppText variant="caption" muted>{subtitle}</AppText> : null}
         </View>
       </View>

@@ -32,7 +32,7 @@ REVENUECAT_IOS_API_KEY = _get("REVENUECAT_IOS_API_KEY")
 REVENUECAT_ANDROID_API_KEY = _get("REVENUECAT_ANDROID_API_KEY")
 
 FREE_CHAT_ALLOWANCE = int(_get("FREE_CHAT_ALLOWANCE", "10"))
-FAIRUSE_DAILY_MESSAGES = int(_get("FAIRUSE_DAILY_MESSAGES", "40"))
+FAIRUSE_DAILY_MESSAGES = int(_get("FAIRUSE_DAILY_MESSAGES", "25"))
 
 DB_ENABLED = bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
 AI_ENABLED = bool(OPENROUTER_API_KEY)
@@ -61,7 +61,11 @@ DEFAULT_APP_CONFIG = {
             {"id": "monthly", "period": "month", "recommended": False,
              "ref_price": {"INR": "\u20b9299", "USD": "$7.99"}},
             {"id": "annual", "period": "year", "recommended": True, "badge": "BEST VALUE",
-             "ref_price": {"INR": "\u20b91,999", "USD": "$39.99"}},
+             "ref_price": {"INR": "\u20b92,499", "USD": "$49.99"}},
+            {"id": "questions_10", "period": "one_time", "type": "questions", "count": 10,
+             "ref_price": {"INR": "\u20b9199", "USD": "$2.99"}},
+            {"id": "questions_30", "period": "one_time", "type": "questions", "count": 30, "badge": "BEST VALUE",
+             "ref_price": {"INR": "\u20b9449", "USD": "$5.99"}},
             {"id": "report_match", "period": "one_time", "type": "report",
              "ref_price": {"INR": "\u20b9249", "USD": "$2.99"}, "list_price": {"INR": "\u20b9498", "USD": "$5.98"}, "discount": 50},
             {"id": "report_artha_strategy", "period": "one_time", "type": "report",

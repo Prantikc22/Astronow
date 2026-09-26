@@ -90,8 +90,8 @@ export default function Reports() {
         <Animated.View key={tool.label} entering={pop(i, 45)}>
           <MotionPressable onPress={() => router.push(tool.route as any)} style={styles.tool} testID={`tool-${tool.route.replace(/\W/g, "")}`}>
             <LinearGradient colors={tool.tint} style={styles.toolIcon}><Icon name={tool.icon} size={22} color={colors.ink} weight="duotone" /></LinearGradient>
-            <AppText variant="label" style={{ marginTop: 12, fontSize: 14 }}>{tool.label}</AppText>
-            <AppText variant="caption" muted numberOfLines={1}>{tool.sub}</AppText>
+            <AppText variant="label" style={{ marginTop: 12, fontSize: 14, lineHeight: 18 }}>{tool.label}</AppText>
+            <AppText variant="caption" muted style={{ marginTop: 2 }}>{tool.sub}</AppText>
           </MotionPressable>
         </Animated.View>
       ))}
@@ -111,7 +111,7 @@ export default function Reports() {
                   <Icon name={report.icon} size={30} color={colors.coralSoft} weight="fill" />
                   {!entitlement.premium ? <View style={styles.lock}><Icon name="lock" size={11} color={colors.coralSoft} weight="bold" /></View> : null}
                 </MotionPressable>
-                <AppText variant="caption" center numberOfLines={tileWidth < 72 ? 3 : 2} style={{ marginTop: 7, color: colors.onSurface, fontSize: tileWidth < 72 ? 11.5 : 13, lineHeight: tileWidth < 72 ? 15 : 17 }}>{report.title}</AppText>
+                <AppText variant="caption" center style={{ marginTop: 7, color: colors.onSurface, fontSize: tileWidth < 72 ? 11.5 : 13, lineHeight: tileWidth < 72 ? 15 : 17 }}>{report.title}</AppText>
               </Animated.View>
             );
           })}
@@ -132,7 +132,7 @@ export default function Reports() {
             <View style={{ flex: 1 }}>
               <AppText variant="label" style={{ color: colors.coralSoft, fontSize: 10, letterSpacing: 0.8 }}>{display.eyebrow}</AppText>
               <AppText variant="subtitle" style={{ marginTop: 2 }}>{display.title}</AppText>
-              <AppText variant="caption" muted numberOfLines={2} style={{ marginTop: 3 }}>{display.description}</AppText>
+              <AppText variant="caption" muted style={{ marginTop: 3 }}>{display.description}</AppText>
             </View>
             <View style={styles.priceStack}>
               <View style={styles.discountPill}><AppText variant="caption" style={{ color: colors.ink, fontSize: 10 }}>{report.discount}</AppText></View>
@@ -191,7 +191,7 @@ const useStyles = makeStyles((colors) => ({
   featuredFill: { flex: 1, padding: 20, overflow: "hidden" },
   featuredTag: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.gold },
   readRow: { alignSelf: "flex-start", flexDirection: "row", gap: 8, alignItems: "center", marginTop: 16, paddingHorizontal: 18, height: 44, borderRadius: 12, backgroundColor: colors.ivory },
-  tool: { width: 120, padding: 14, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
+  tool: { width: 138, height: 160, padding: 14, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
   toolIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   ornament: { flexDirection: "row", alignItems: "center", gap: 10 },
   ornLine: { flex: 1, height: 1 },

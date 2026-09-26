@@ -12,6 +12,7 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@expo-google-fonts/cormorant-garamond": "0.4.1",
     "@expo-google-fonts/fraunces": "0.4.1",
     "@expo-google-fonts/nunito-sans": "0.4.2",
     "@expo/metro-runtime": "~57.0.16",

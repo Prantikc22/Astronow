@@ -112,7 +112,7 @@ export default function Ask() {
     } catch (error: any) {
       if (error instanceof ApiError && (error.status === 402 || error.payload?.paywall)) {
         setMessages((current) => current.slice(0, -1));
-        router.push("/paywall");
+        router.push({ pathname: "/paywall", params: { tab: "questions" } });
       } else {
         setMessages((current) => {
           const copy = [...current];
@@ -163,7 +163,7 @@ export default function Ask() {
             </View>
             <View style={{ flexDirection: "row", gap: 9, alignItems: "center" }}>
               {usage && !usage.premium ? (
-                <MotionPressable onPress={() => router.push("/paywall")} style={styles.leftPill} testID="ask-credits" accessibilityLabel={`${usage.remaining} questions left`}>
+                <MotionPressable onPress={() => router.push({ pathname: "/paywall", params: { tab: "questions" } })} style={styles.leftPill} testID="ask-credits" accessibilityLabel={`${usage.remaining} questions left`}>
                   <AppText variant="label" style={{ color: usage.remaining > 2 ? colors.goldSoft : colors.coral, fontSize: 12 }}>{`${usage.remaining} left`}</AppText>
                 </MotionPressable>
               ) : null}
@@ -245,7 +245,7 @@ export default function Ask() {
                         <Icon name="crown" size={20} color={colors.goldSoft} weight="fill" />
                         <View style={{ flex: 1 }}>
                           <AppText variant="subtitle" style={{ fontSize: 15 }}>Keep the conversation going</AppText>
-                          <AppText variant="caption" muted>40 questions a day with Tara on Plus</AppText>
+                          <AppText variant="caption" muted>25 questions a day with Tara on Plus</AppText>
                         </View>
                         <Icon name="arrow-right" size={17} color={colors.goldSoft} />
                       </LinearGradient>

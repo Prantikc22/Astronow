@@ -68,6 +68,10 @@ export const fonts = {
   medium: "NunitoSans-SemiBold",
   semibold: "NunitoSans-SemiBold",
   bold: "NunitoSans-Bold",
+  /** Brand wordmark only: a high-contrast display serif. */
+  wordmark: "Cormorant-SemiBold",
+  wordmarkMedium: "Cormorant-Medium",
+  wordmarkItalic: "Cormorant-MediumItalic",
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 };

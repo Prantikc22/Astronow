@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -22,10 +22,16 @@ import { useAuth } from "@/src/store/auth";
 import { localizedReferencePrice, displayCurrency } from "@/src/content/pricing";
 import { REPORTS, reportDisplay, reportPrice } from "@/src/content/reports";
 import { makeStyles, radii, useTheme } from "@/src/theme";
+import { haptics } from "@/src/utils/haptics";
+
+const FALLBACK_PACKS = [
+  { id: "questions_10", type: "questions", count: 10, ref_price: { INR: "₹199", USD: "$2.99" } },
+  { id: "questions_30", type: "questions", count: 30, badge: "BEST VALUE", ref_price: { INR: "₹449", USD: "$5.99" } },
+];
 
 const FALLBACK_PLANS = [
   { id: "monthly", period: "month", ref_price: { INR: "₹299", USD: "$7.99" } },
-  { id: "annual", period: "year", badge: "BEST VALUE", ref_price: { INR: "₹1,999", USD: "$39.99" } },
+  { id: "annual", period: "year", badge: "BEST VALUE", ref_price: { INR: "₹2,499", USD: "$49.99" } },
 ];
 
 export default function Paywall() {
@@ -36,7 +42,7 @@ export default function Paywall() {
   const { refresh, user, profile } = useAuth();
   const { data: config } = useAppConfig();
   const freeMessages = config?.free_chat_allowance ?? 10;
-  const dailyMessages = config?.fairuse_daily_messages ?? 40;
+  const dailyMessages = config?.fairuse_daily_messages ?? 25;
   const matchReport = REPORTS.find((item) => item.slug === "match-report")!;
   const arthaReport = REPORTS.find((item) => item.slug === "artha-strategy")!;
   const compassReport = REPORTS.find((item) => item.slug === "twelve-year-compass")!;
@@ -72,7 +78,25 @@ export default function Paywall() {
     },
   });
 
-  const [tab, setTab] = useState<"plus" | "reports">("plus");
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<PaywallTab>(params.tab === "questions" || params.tab === "reports" ? params.tab : "plus");
+  const packs = products.filter((p: any) => p.type === "questions");
+  const [pack, setPack] = useState("questions_30");
+  const packPackage = findPackage(offering?.availablePackages || [], pack);
+  const packReady = !!packPackage && !isPreviewSession();
+  const qc = useQueryClient();
+  const buyPack = useMutation({
+    mutationFn: async () => {
+      setPurchaseError(null);
+      if (!packPackage) throw new Error("This question pack is not available in the store yet.");
+      await buyPackage(packPackage);
+      return api.post("/questions/sync");
+    },
+    onSuccess: async () => { haptics.success(); await qc.invalidateQueries({ queryKey: ["usage"] }); goBack(); },
+    onError: (error: any) => {
+      if (!error?.userCancelled) setPurchaseError(error?.message || "The purchase could not be completed. Please try again.");
+    },
+  });
   // Only real, admin-entered numbers ever render here (app_config.social_proof).
   const proof: SocialProofData | null = config?.social_proof && (config.social_proof.rating || config.social_proof.testimonials?.length) ? config.social_proof : null;
   const parse = (value?: string) => Number(String(value || "").replace(/[^0-9.]/g, "")) || 0;
@@ -169,6 +193,25 @@ export default function Paywall() {
                 <AppText variant="caption" muted style={{ flex: 1 }}>{`Daily sky, chart basics and ${freeMessages} messages with Tara each month stay free, always.`}</AppText>
               </View>
             </Animated.View>
+          ) : tab === "questions" ? (
+            <Animated.View key="questions" entering={FadeIn.duration(260)} style={{ gap: 12, marginTop: 20 }}>
+              <AppText variant="body" muted center>Ask Tara more, without a subscription. Questions never expire.</AppText>
+              {(packs.length ? packs : FALLBACK_PACKS).map((p: any, index: number) => {
+                const price = findPackage(offering?.availablePackages || [], p.id)?.product.priceString || localizedReferencePrice(p.ref_price);
+                const each = parse(price) && p.count ? `${symbol}${Math.round(parse(price) / p.count)} per question` : undefined;
+                return (
+                  <Animated.View key={p.id} entering={rise(index)}>
+                    <PlanCard selected={pack === p.id} onPress={() => setPack(p.id)} testID={`pack-${p.id}`}
+                      title={`${p.count} questions`} price={price} period="one time" badge={p.badge} note={each} />
+                  </Animated.View>
+                );
+              })}
+              <MotionPressable onPress={() => setTab("plus")} style={styles.packHint} haptic="light">
+                <Icon name="crown" size={16} color={colors.goldSoft} weight="fill" />
+                <AppText variant="caption" style={{ flex: 1, color: colors.onSurface }}>{`Asking often? Plus includes ${dailyMessages} questions a day and every report.`}</AppText>
+                <Icon name="arrow-right" size={14} color={colors.goldSoft} />
+              </MotionPressable>
+            </Animated.View>
           ) : (
             <Animated.View key="reports" entering={FadeIn.duration(260)} style={{ gap: 12, marginTop: 20 }}>
               <AppText variant="body" muted center>One-time deep dives. No subscription needed—yours for good.</AppText>
@@ -181,7 +224,7 @@ export default function Paywall() {
                       <View style={{ flex: 1 }}>
                         <AppText variant="label" style={{ color: colors.coralSoft, fontSize: 10, letterSpacing: 0.8 }}>{display.eyebrow}</AppText>
                         <AppText variant="subtitle" style={{ marginTop: 2 }}>{display.title}</AppText>
-                        <AppText variant="caption" muted numberOfLines={2} style={{ marginTop: 3 }}>{display.description}</AppText>
+                        <AppText variant="caption" muted style={{ marginTop: 3 }}>{display.description}</AppText>
                       </View>
                       <View style={{ alignItems: "flex-end", gap: 3 }}>
                         <View style={styles.discount}><AppText variant="caption" style={{ color: colors.ink, fontSize: 10 }}>{report.discount}</AppText></View>
@@ -212,6 +255,13 @@ export default function Paywall() {
             <Button label={purchaseReady ? `Start Plus · ${selectedStorePrice}${selected === "annual" ? "/year" : "/month"}` : "Store purchase unavailable"}
               iconRight={purchaseReady ? "arrow-right" : undefined} icon={purchaseReady ? undefined : "lock"} loading={purchase.isPending} disabled={!purchaseReady}
               onPress={() => purchase.mutate()} testID="paywall-continue" shine haptic="heavy" />
+            {purchaseError ? <AppText variant="caption" center style={{ color: colors.coralSoft, marginTop: 8 }}>{purchaseError}</AppText> : null}
+          </LinearGradient>
+        ) : tab === "questions" ? (
+          <LinearGradient colors={["rgba(10,9,24,0)", "rgba(10,9,24,0.96)", "#0A0918"]} locations={[0, 0.35, 1]} style={[styles.dock, { paddingBottom: insets.bottom + 14 }]}>
+            <Button label={packReady ? `Buy ${pack === "questions_30" ? 30 : 10} questions · ${packPackage?.product.priceString}` : "Store purchase unavailable"}
+              iconRight={packReady ? "arrow-right" : undefined} icon={packReady ? undefined : "lock"} loading={buyPack.isPending} disabled={!packReady}
+              onPress={() => buyPack.mutate()} testID="paywall-buy-pack" shine haptic="heavy" />
             {purchaseError ? <AppText variant="caption" center style={{ color: colors.coralSoft, marginTop: 8 }}>{purchaseError}</AppText> : null}
           </LinearGradient>
         ) : null}
@@ -271,19 +321,23 @@ function HeroSeal() {
   );
 }
 
-function Segmented({ value, onChange }: { value: "plus" | "reports"; onChange: (v: "plus" | "reports") => void }) {
+type PaywallTab = "plus" | "questions" | "reports";
+const TABS: { key: PaywallTab; label: string }[] = [{ key: "plus", label: "Plus" }, { key: "questions", label: "Questions" }, { key: "reports", label: "Reports" }];
+
+function Segmented({ value, onChange }: { value: PaywallTab; onChange: (v: PaywallTab) => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [w, setW] = useState(0);
   const x = useSharedValue(0);
-  useEffect(() => { x.value = withSpring(value === "plus" ? 0 : w / 2, springs.snappy); }, [value, w, x]);
+  const slot = w / TABS.length;
+  useEffect(() => { x.value = withSpring(TABS.findIndex((t) => t.key === value) * slot, springs.snappy); }, [value, slot, x]);
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (
     <View style={styles.segment} onLayout={(e) => setW(e.nativeEvent.layout.width - 8)}>
-      {w ? <Animated.View style={[styles.segmentPill, { width: w / 2 }, pill]} /> : null}
-      {(["plus", "reports"] as const).map((key) => (
+      {w ? <Animated.View style={[styles.segmentPill, { width: slot }, pill]} /> : null}
+      {TABS.map(({ key, label }) => (
         <MotionPressable key={key} onPress={() => onChange(key)} style={styles.segmentItem} testID={`paywall-tab-${key}`}>
-          <AppText variant="label" style={{ color: value === key ? colors.onSurface : colors.muted, fontSize: 14 }}>{key === "plus" ? "Plus membership" : "One-time reports"}</AppText>
+          <AppText variant="label" style={{ color: value === key ? colors.onSurface : colors.muted, fontSize: 14 }}>{label}</AppText>
         </MotionPressable>
       ))}
     </View>
@@ -336,6 +390,7 @@ const useStyles = makeStyles((colors) => ({
   save: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: "#8FB8F0" },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.borderStrong, alignItems: "center", justifyContent: "center" },
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.gold },
+  packHint: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 12, backgroundColor: "rgba(242,200,121,0.07)", borderWidth: 1, borderColor: "rgba(242,200,121,0.25)" },
   proof: { marginTop: 20, padding: 16, borderRadius: radii.lg, backgroundColor: "rgba(28,27,52,0.95)", borderWidth: 1, borderColor: colors.border },
   unlocks: { marginTop: 20, gap: 14, padding: 20, borderRadius: radii.xl, backgroundColor: "rgba(21,20,43,0.92)", borderWidth: 1, borderColor: colors.glassBorder },
   unlockRow: { flexDirection: "row", alignItems: "center", gap: 13 },

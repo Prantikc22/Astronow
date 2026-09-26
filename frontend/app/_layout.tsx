@@ -1,4 +1,5 @@
 import { useFonts } from "expo-font";
+import { CormorantGaramond_500Medium, CormorantGaramond_500Medium_Italic, CormorantGaramond_600SemiBold } from "@expo-google-fonts/cormorant-garamond";
 import { Fraunces_500Medium, Fraunces_600SemiBold } from "@expo-google-fonts/fraunces";
 import { NunitoSans_400Regular, NunitoSans_600SemiBold, NunitoSans_700Bold } from "@expo-google-fonts/nunito-sans";
 import { Stack, useRouter } from "expo-router";
@@ -30,6 +31,9 @@ export default function RootLayout() {
     "NunitoSans-Regular": NunitoSans_400Regular,
     "NunitoSans-SemiBold": NunitoSans_600SemiBold,
     "NunitoSans-Bold": NunitoSans_700Bold,
+    "Cormorant-Medium": CormorantGaramond_500Medium,
+    "Cormorant-MediumItalic": CormorantGaramond_500Medium_Italic,
+    "Cormorant-SemiBold": CormorantGaramond_600SemiBold,
   });
 
   useEffect(() => {

@@ -115,8 +115,8 @@ function Summary({ label, value }: { label: string; value?: string }) {
   const { colors } = useTheme();
   return (
     <GlassCard style={{ flex: 1 }}>
-      <AppText variant="caption" muted numberOfLines={1}>{label}</AppText>
-      <AppText variant="subtitle" style={{ marginTop: 4, color: colors.gold }} numberOfLines={1}>{value || "—"}</AppText>
+      <AppText variant="caption" muted>{label}</AppText>
+      <AppText variant="subtitle" style={{ marginTop: 4, color: colors.gold }}>{value || "—"}</AppText>
     </GlassCard>
   );
 }

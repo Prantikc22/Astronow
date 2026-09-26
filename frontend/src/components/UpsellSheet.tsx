@@ -27,9 +27,9 @@ function contentFor(kind: UpsellKind): Content {
     return {
       kicker: "ASTRONOW PLUS", title: "Your full chart is ready to unlock",
       body: "Everything your birth chart can tell you, in one membership.",
-      points: [["message-circle", "40 questions a day with Tara, 24x7"], ["file-text", `All ${plusCount} in-depth reports`], ["target", "Full Kundli, life periods and transits"], ["home", "Vastu remedies, Tarot and Numerology"]],
+      points: [["message-circle", "25 questions a day with Tara, 24x7"], ["file-text", `All ${plusCount} in-depth reports`], ["target", "Full Kundli, life periods and transits"], ["home", "Vastu remedies, Tarot and Numerology"]],
       cta: "See Plus plans", route: "/paywall",
-      price: displayCurrency() === "INR" ? "Under ₹6 a day on the yearly plan" : "About 11¢ a day on the yearly plan",
+      price: displayCurrency() === "INR" ? "Under ₹7 a day on the yearly plan" : "About 14¢ a day on the yearly plan",
     };
   }
   const report = REPORTS.find((r) => r.slug === kind)!;
