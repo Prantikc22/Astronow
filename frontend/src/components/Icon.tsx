@@ -7,6 +7,7 @@ import {
   MagnifyingGlass, Lightning, ShieldCheck, Smiley, Stack, StarFour, Sun, SunHorizon, Target, TrendUp, UploadSimple, User,
   WarningCircle, X, UsersThree, SignOut, CircleIcon, ChartBar, Flame, Sparkle, Eye, Crown, Lightbulb,
   Hourglass, PaperPlaneTilt, ClockCounterClockwise, Plus, Checks, CaretDown, InfinityIcon, Timer, Palette, HandHeart,
+  DeviceMobile, EnvelopeSimple, ArrowLeft,
   type IconProps,
 } from "phosphor-react-native";
 import React from "react";
@@ -75,6 +76,9 @@ const ICONS: Record<string, React.ComponentType<IconProps>> = {
   flame: Flame,
   sparkle: Sparkle,
   eye: Eye,
+  phone: DeviceMobile,
+  mail: EnvelopeSimple,
+  "arrow-left": ArrowLeft,
   crown: Crown,
   bulb: Lightbulb,
   hourglass: Hourglass,

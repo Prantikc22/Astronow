@@ -12,15 +12,50 @@ import { fonts, makeStyles, useTheme } from "@/src/theme";
 import { haptics } from "@/src/utils/haptics";
 
 /** One field: country (flag + code) and the number, with a searchable picker for every country. */
-export function PhoneInput({ country, onCountry, value, onChange, onSubmit, autoFocus }: {
+export function PhoneInput({ country, onCountry, value, onChange, onSubmit, autoFocus, split }: {
   /** ISO country code, e.g. "IN". */
   country: string; onCountry: (iso: string) => void; value: string; onChange: (v: string) => void; onSubmit?: () => void; autoFocus?: boolean;
+  /** Large separate country and number pills, for the full-screen sign-in step. */
+  split?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const selected = countryByIso(country);
+  const picker = <CountryPicker visible={open} selected={selected.iso} onClose={() => setOpen(false)} onSelect={(iso) => { onCountry(iso); setOpen(false); }} />;
+  if (split) {
+    return (
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <MotionPressable onPress={() => setOpen(true)} style={styles.ccPill} accessibilityLabel={`Country: ${selected.name}, +${selected.code}`} testID="phone-country">
+          <AppText style={{ fontSize: 22 }}>{flagOf(selected.iso)}</AppText>
+          <AppText style={styles.bigText}>{`+${selected.code}`}</AppText>
+          <Icon name="chevron-down" size={13} color={colors.muted} />
+        </MotionPressable>
+        <View style={[styles.numPill, focused && styles.numPillOn]}>
+          <TextInput
+            value={value}
+            onChangeText={(t) => onChange(t.replace(/[^\d]/g, "").slice(0, 14))}
+            placeholder={selected.iso === "IN" ? "98765 43210" : "Mobile number"}
+            placeholderTextColor="rgba(170,166,190,0.6)"
+            keyboardType="phone-pad"
+            textContentType="telephoneNumber"
+            autoComplete="tel"
+            returnKeyType="done"
+            onSubmitEditing={onSubmit}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            autoFocus={autoFocus}
+            selectionColor={colors.gold}
+            style={[styles.input, styles.bigText, { paddingHorizontal: 18 }]}
+            testID="phone-number"
+            accessibilityLabel="Mobile number"
+          />
+        </View>
+        {picker}
+      </View>
+    );
+  }
   return (
     <View style={[styles.field, focused && { borderColor: "rgba(242,200,121,0.55)" }]}>
       <MotionPressable onPress={() => setOpen(true)} style={styles.cc} accessibilityLabel={`Country: ${selected.name}, +${selected.code}`} testID="phone-country">
@@ -46,7 +81,7 @@ export function PhoneInput({ country, onCountry, value, onChange, onSubmit, auto
         testID="phone-number"
         accessibilityLabel="Mobile number"
       />
-      <CountryPicker visible={open} selected={selected.iso} onClose={() => setOpen(false)} onSelect={(iso) => { onCountry(iso); setOpen(false); }} />
+      {picker}
     </View>
   );
 }
@@ -159,6 +194,10 @@ export function OtpInput({ length = 6, value, onChange, onComplete, error }: {
 const useStyles = makeStyles((colors) => ({
   field: { flexDirection: "row", alignItems: "center", height: 52, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(235,226,250,0.05)" },
   cc: { flexDirection: "row", alignItems: "center", gap: 6, height: "100%", paddingLeft: 14, paddingRight: 10 },
+  ccPill: { flexDirection: "row", alignItems: "center", gap: 7, height: 60, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1.5, borderColor: colors.borderStrong, backgroundColor: "rgba(235,226,250,0.05)" },
+  numPill: { flex: 1, height: 60, borderRadius: 18, borderWidth: 1.5, borderColor: colors.border, backgroundColor: "rgba(235,226,250,0.05)" },
+  numPillOn: { borderColor: colors.gold, backgroundColor: "rgba(242,200,121,0.06)" },
+  bigText: { fontFamily: fonts.bold, fontSize: 18, letterSpacing: 1, color: colors.onSurface },
   divider: { width: 1, height: 24, backgroundColor: colors.border },
   input: { flex: 1, minWidth: 0, height: "100%", paddingHorizontal: 14, color: colors.onSurface, fontFamily: fonts.medium, fontSize: 17, letterSpacing: 0.8 },
   sheet: { paddingHorizontal: 16, paddingTop: 10, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "#15132B", borderWidth: 1, borderColor: colors.borderStrong },
@@ -169,7 +208,7 @@ const useStyles = makeStyles((colors) => ({
   option: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 10, borderRadius: 10 },
   optionOn: { backgroundColor: "rgba(242,200,121,0.1)" },
   otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
-  box: { flex: 1, height: 58, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surfaceTertiary, alignItems: "center", justifyContent: "center" },
+  box: { flex: 1, height: 64, borderRadius: 16, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surfaceTertiary, alignItems: "center", justifyContent: "center" },
   boxFilled: { borderColor: "rgba(242,200,121,0.5)" },
   digit: { fontFamily: fonts.displayStrong, fontSize: 24, color: colors.onSurface },
   hidden: { position: "absolute", opacity: 0, width: 1, height: 1 },
