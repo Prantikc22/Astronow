@@ -1,76 +1,106 @@
-"""Render the AstroNow aperture mark into native icon and splash assets."""
+"""Build the AstroNow icon and splash assets.
+
+The app icon comes from the supplied artwork (assets/images/brand/source-star.png).
+The splash mark is the same eight-point star drawn from geometry, so it lines up
+exactly with the vector mark in src/components/BrandMark.tsx.
+
+Run with a Python that has Pillow and numpy: python scripts/generate-brand-assets.py
+"""
 
 import math
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "assets" / "images" / "brand"
-OUT.mkdir(parents=True, exist_ok=True)
+IMAGES = ROOT / "assets" / "images"
+OUT = IMAGES / "brand"
 
-MIDNIGHT = (11, 11, 26, 255)
-GOLD = (247, 221, 166, 255)
-SOFT = (248, 242, 232, 255)
-CORAL = (240, 160, 189, 255)
+# ---------- App icon, from the artwork ----------
+# The artwork is a rounded tile on a dark backdrop. Crop to the tile, then fill
+# the four corners from a blurred copy so the icon is full-bleed (iOS and
+# Android apply their own corner masks).
+TILE = (95, 82, 1159, 1146)
+art = Image.open(OUT / "source-star.png").convert("RGB").crop(TILE).resize((1024, 1024), Image.Resampling.LANCZOS)
+fill = art.resize((1180, 1180), Image.Resampling.BICUBIC).crop((78, 78, 1102, 1102)).filter(ImageFilter.GaussianBlur(60))
+mask = Image.new("L", (1024, 1024), 0)
+ImageDraw.Draw(mask).rounded_rectangle((14, 14, 1010, 1010), radius=205, fill=255)
+mask = mask.filter(ImageFilter.GaussianBlur(10))
+icon = Image.composite(art, fill, mask)
+icon.save(OUT / "icon.png")
+# app.json uses this second path so Expo Go cannot reuse an old icon URL.
+icon.save(IMAGES / "icon.png")
+icon.resize((128, 128), Image.Resampling.LANCZOS).save(OUT / "favicon.png")
+icon.resize((128, 128), Image.Resampling.LANCZOS).save(IMAGES / "favicon.png")
+
+# Android adaptive icon: only the middle two thirds is always visible, so the
+# tile sits at 84% on a blurred extension of itself.
+backdrop = icon.resize((1400, 1400), Image.Resampling.BICUBIC).crop((188, 188, 1212, 1212)).filter(ImageFilter.GaussianBlur(40))
+inner = icon.resize((860, 860), Image.Resampling.LANCZOS)
+edge = Image.new("L", (860, 860), 0)
+ImageDraw.Draw(edge).rectangle((40, 40, 820, 820), fill=255)
+edge = edge.filter(ImageFilter.GaussianBlur(24))
+adaptive = backdrop.copy()
+adaptive.paste(inner, (82, 82), edge)
+adaptive.save(OUT / "adaptive-foreground.png")
+adaptive.save(IMAGES / "adaptive-icon.png")
 
 
-def mark(size: int, background: bool) -> Image.Image:
-    scale = 4
-    w = size * scale
-    img = Image.new("RGBA", (w, w), MIDNIGHT if background else (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    unit = w / 100
-    def xy(x, y): return (round(x * unit), round(y * unit))
-    stroke = round(5 * unit)
-    # Keep this native asset in sync with src/components/BrandMark.tsx.
-    orbit = []
-    angle = -math.pi / 10
-    for i in range(260):
-        t = 2 * math.pi * i / 259
-        x, y = 39 * math.cos(t), 27 * math.sin(t)
-        orbit.append(xy(50 + x * math.cos(angle) - y * math.sin(angle),
-                        50 + x * math.sin(angle) + y * math.cos(angle)))
-    for i in range(0, len(orbit) - 3, 8):
-        draw.line(orbit[i:i + 5], fill=(247, 221, 166, 145), width=round(3.2 * unit))
+# ---------- Star mark, from geometry (keep in sync with BrandMark.tsx) ----------
+def star_points(cx, cy, long_v, long_h, waist):
+    return [(cx, cy - long_v), (cx + waist, cy - waist), (cx + long_h, cy), (cx + waist, cy + waist),
+            (cx, cy + long_v), (cx - waist, cy + waist), (cx - long_h, cy), (cx - waist, cy - waist)]
 
-    def bezier(p0, p1, p2, p3):
-        return [xy((1-t)**3*p0[0] + 3*(1-t)**2*t*p1[0] + 3*(1-t)*t*t*p2[0] + t**3*p3[0],
-                   (1-t)**3*p0[1] + 3*(1-t)**2*t*p1[1] + 3*(1-t)*t*t*p2[1] + t**3*p3[1])
-                for t in (i/80 for i in range(81))]
 
-    eye = bezier((13, 52), (24, 35), (36, 27), (50, 27))
-    eye += bezier((50, 27), (64, 27), (76, 35), (87, 52))
-    eye += bezier((87, 52), (76, 68), (64, 76), (50, 76))
-    eye += bezier((50, 76), (36, 76), (24, 68), (13, 52))
-    draw.line(eye, fill=GOLD, width=round(4.4 * unit), joint="curve")
-    for radius, fill in ((14, None), (5.5, CORAL)):
-        cx, cy = xy(50, 52)
-        rr = radius * unit
-        draw.ellipse((cx-rr, cy-rr, cx+rr, cy+rr), outline=GOLD if fill is None else None,
-                     fill=fill, width=round(4 * unit))
-    for a, b in (((77, 15), (77, 29)), ((70, 22), (84, 22)),
-                 ((73, 18), (81, 26)), ((81, 18), (73, 26))):
-        draw.line((xy(*a), xy(*b)), fill=GOLD, width=round(2.8 * unit))
+def diagonal_points(cx, cy, reach, waist):
+    d = reach / math.sqrt(2)
+    return [(cx + d, cy - d), (cx + waist, cy), (cx + d, cy + d), (cx, cy + waist),
+            (cx - d, cy + d), (cx - waist, cy), (cx - d, cy - d), (cx, cy - waist)]
+
+
+def radial(size, stops):
+    """RGBA radial gradient; stops are (offset 0..1, (r, g, b, a))."""
+    y, x = np.mgrid[0:size, 0:size]
+    r = np.hypot(x - size / 2, y - size / 2) / (size / 2)
+    out = np.zeros((size, size, 4), dtype=np.float32)
+    offsets = [s[0] for s in stops]
+    for c in range(4):
+        out[..., c] = np.interp(r, offsets, [s[1][c] for s in stops])
+    return Image.fromarray(out.astype(np.uint8))
+
+
+def star(size: int, halo: bool = True) -> Image.Image:
+    s = 3
+    w = size * s
+    u = w / 100
+    img = Image.new("RGBA", (w, w), (0, 0, 0, 0))
+    if halo:
+        img.alpha_composite(radial(w, [(0, (255, 214, 140, 110)), (0.22, (240, 170, 110, 46)), (0.5, (142, 120, 230, 18)), (0.78, (142, 120, 230, 0)), (1, (0, 0, 0, 0))]))
+    ring = Image.new("RGBA", (w, w), (0, 0, 0, 0))
+    r = 35 * u
+    ImageDraw.Draw(ring).ellipse((w / 2 - r, w / 2 - r, w / 2 + r, w / 2 + r), outline=(131, 116, 240, 190), width=max(2, round(0.55 * u)))
+    img.alpha_composite(ring)
+
+    def filled(points, stops):
+        m = Image.new("L", (w, w), 0)
+        ImageDraw.Draw(m).polygon([(x * u, y * u) for x, y in points], fill=255)
+        layer = radial(w, stops)
+        layer.putalpha(Image.composite(layer.getchannel("A"), Image.new("L", (w, w), 0), m))
+        return layer
+
+    glow = filled(star_points(50, 50, 47, 45, 4.2), [(0, (255, 210, 130, 255)), (1, (255, 190, 100, 255))]).filter(ImageFilter.GaussianBlur(1.6 * u))
+    img.alpha_composite(glow)
+    img.alpha_composite(filled(diagonal_points(50, 50, 25, 3.4), [(0, (255, 250, 235, 255)), (0.3, (250, 214, 150, 235)), (1, (240, 180, 100, 235))]))
+    img.alpha_composite(filled(star_points(50, 50, 47, 45, 3.2), [(0, (255, 255, 255, 255)), (0.18, (255, 244, 214, 255)), (0.6, (248, 212, 140, 255)), (1, (242, 190, 105, 255))]))
+    core = radial(round(30 * u), [(0, (255, 255, 255, 255)), (0.3, (255, 246, 220, 200)), (1, (255, 220, 150, 0))])
+    img.alpha_composite(core, (round(w / 2 - core.width / 2), round(w / 2 - core.height / 2)))
     return img.resize((size, size), Image.Resampling.LANCZOS)
 
 
-icon = mark(1024, True)
-icon.save(OUT / "icon.png")
-# app.json deliberately uses this second path so Expo Go cannot reuse the old
-# project-icon URL after a brand update. Keep both outputs identical.
-icon.save(ROOT / "assets" / "images" / "icon.png")
-mark(128, True).save(OUT / "favicon.png")
-
-# Android adaptive-icon foreground gets generous safe-zone padding.
-foreground = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
-foreground.alpha_composite(mark(620, False), (202, 202))
-foreground.save(OUT / "adaptive-foreground.png")
-foreground.save(ROOT / "assets" / "images" / "adaptive-icon.png")
-
+# Native splash: the star sits above centre so the animated splash can put the
+# wordmark beneath it. 640px of 1200 at imageWidth 280 is about 150pt.
 splash = Image.new("RGBA", (1200, 1200), (0, 0, 0, 0))
-splash.alpha_composite(mark(480, False), (360, 192))
-font_path = ROOT / "node_modules" / "@expo-google-fonts" / "fraunces" / "500Medium" / "Fraunces_500Medium.ttf"
-font = ImageFont.truetype(str(font_path), 92)
-draw = ImageDraw.Draw(splash)
-draw.text((600, 790), "astronow", font=font, anchor="mm", fill=SOFT)
-splash.save(OUT / "splash-aperture.png")
+splash.alpha_composite(star(640), (280, 112))
+splash.save(OUT / "splash-mark.png")
+print("brand assets written")

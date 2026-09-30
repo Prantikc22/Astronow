@@ -333,7 +333,7 @@ const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   welcome: { flex: 1, paddingHorizontal: 20 },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  brandMark: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "rgba(242,200,121,0.6)", backgroundColor: "rgba(58,29,74,0.5)" },
+  brandMark: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "rgba(131,116,240,0.7)", backgroundColor: "rgba(30,24,96,0.55)" },
   brandText: { fontFamily: fonts.bold, fontSize: 13, letterSpacing: 2.2, color: colors.onSurface },
   kicker: { marginTop: 12, fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1.5, color: "rgba(170,166,190,0.9)" },
   gBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.ivory, alignItems: "center", justifyContent: "center" },

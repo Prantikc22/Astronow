@@ -20,8 +20,8 @@ import { fonts } from "@/src/theme";
 import { haptics } from "@/src/utils/haptics";
 
 const WORD = "ASTRONOW";
-const MARK = 116;
-// Lines the eye up with the native splash image (mark-only, 280pt wide) so
+const MARK = 150;
+// Lines the star up with the native splash image (mark-only, 280pt wide) so
 // the hand-off from the OS splash to this one is invisible.
 const MARK_OFFSET = -39;
 const MIN_SHOW_MS = 2300;
@@ -41,22 +41,29 @@ function Letter({ char, index }: { char: string; index: number }) {
   return <Animated.Text style={[styles.letter, style]}>{char}</Animated.Text>;
 }
 
-function Orbit({ size, delay, duration, dot, reverse }: { size: number; delay: number; duration: number; dot: string; reverse?: boolean }) {
-  const reveal = useSharedValue(0);
-  const spin = useSharedValue(0);
+/** A ring of light that leaves the star and fades, like a ripple. */
+function Ripple({ delay }: { delay: number }) {
+  const t = useSharedValue(0);
   useEffect(() => {
-    reveal.value = withDelay(delay, withTiming(1, { duration: 900, easing: Easing.bezier(0.22, 1, 0.36, 1) }));
-    spin.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.linear }), -1));
-  }, [reveal, spin, delay, duration]);
-  const style = useAnimatedStyle(() => ({
-    opacity: reveal.value * 0.9,
-    transform: [{ scale: 0.55 + reveal.value * 0.45 }, { rotate: `${(reverse ? -1 : 1) * spin.value * 360}deg` }],
-  }));
-  return (
-    <Animated.View style={[styles.orbit, { width: size, height: size, borderRadius: size / 2 }, style]}>
-      <View style={[styles.planet, { backgroundColor: dot, shadowColor: dot, left: size / 2 - 4 }]} />
-    </Animated.View>
-  );
+    t.value = withDelay(delay, withTiming(1, { duration: 1500, easing: Easing.out(Easing.cubic) }));
+  }, [t, delay]);
+  const style = useAnimatedStyle(() => ({ opacity: t.value === 0 ? 0 : (1 - t.value) * 0.7, transform: [{ scale: 1 + t.value * 1.5 }] }));
+  return <Animated.View style={[styles.ripple, style]} />;
+}
+
+// Small companion stars around the mark, as in the app icon.
+const SPARKS = [
+  { x: -118, y: -92, size: 9, delay: 700 }, { x: 104, y: -128, size: 7, delay: 900 }, { x: 132, y: -20, size: 5, delay: 1100 },
+  { x: -96, y: 58, size: 6, delay: 1000 }, { x: 122, y: 96, size: 8, delay: 1250 }, { x: -140, y: -18, size: 4, delay: 1350 },
+];
+
+function Spark({ x, y, size, delay }: { x: number; y: number; size: number; delay: number }) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.value = withDelay(delay, withSequence(withTiming(1, { duration: 420 }), withRepeat(withTiming(0.35, { duration: 1100, easing: Easing.inOut(Easing.sin) }), -1, true)));
+  }, [t, delay]);
+  const style = useAnimatedStyle(() => ({ opacity: t.value, transform: [{ translateX: x }, { translateY: y + MARK_OFFSET }, { scale: 0.6 + t.value * 0.4 }] }));
+  return <Animated.Text style={[{ position: "absolute", color: "#F7DDA6", fontSize: size * 1.6 }, style]}>✦</Animated.Text>;
 }
 
 /** A gold hairline that draws outward from a small star under the wordmark. */
@@ -87,6 +94,8 @@ export function AnimatedSplash({ ready, onDone }: { ready: boolean; onDone: () =
   const bloom = useSharedValue(0);
   const mark = useSharedValue(1);
   const tagline = useSharedValue(0);
+  const twirl = useSharedValue(0);
+  const breathe = useSharedValue(0);
   const exit = useSharedValue(0);
 
   useEffect(() => {
@@ -94,14 +103,17 @@ export function AnimatedSplash({ ready, onDone }: { ready: boolean; onDone: () =
     if (!reduced) {
       stars.value = withTiming(1, { duration: 900 });
       bloom.value = withDelay(120, withTiming(1, { duration: 1200, easing: Easing.out(Easing.cubic) }));
-      mark.value = withDelay(480, withSequence(withTiming(1.1, { duration: 260, easing: Easing.out(Easing.quad) }), withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) })));
+      mark.value = withDelay(380, withSequence(withTiming(1.16, { duration: 320, easing: Easing.out(Easing.quad) }), withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) })));
+      // The short rays turn a quarter circle, which lands them exactly where they began.
+      twirl.value = withDelay(380, withTiming(1, { duration: 1300, easing: Easing.bezier(0.22, 1, 0.36, 1) }));
+      breathe.value = withDelay(1200, withRepeat(withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.sin) }), -1, true));
       tagline.value = withDelay(1450, withTiming(1, { duration: 600 }));
     } else {
       stars.value = 1; bloom.value = 1; tagline.value = 1;
     }
     const pulse = setTimeout(() => haptics.soft(), reduced ? 0 : 500);
     return () => { clearTimeout(timer); clearTimeout(pulse); };
-  }, [reduced, stars, bloom, mark, tagline]);
+  }, [reduced, stars, bloom, mark, tagline, twirl, breathe]);
 
   useEffect(() => {
     if (!ready || !minElapsed) return;
@@ -115,6 +127,8 @@ export function AnimatedSplash({ ready, onDone }: { ready: boolean; onDone: () =
   const starStyle = useAnimatedStyle(() => ({ opacity: stars.value }));
   const bloomStyle = useAnimatedStyle(() => ({ opacity: bloom.value * (1 - exit.value), transform: [{ scale: 0.4 + bloom.value * 0.8 + exit.value * 1.2 }] }));
   const markStyle = useAnimatedStyle(() => ({ transform: [{ translateY: MARK_OFFSET }, { scale: mark.value * (1 + exit.value * 0.5) }] }));
+  const diagStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${twirl.value * 90}deg` }, { scale: 1 + Math.sin(twirl.value * Math.PI) * 0.35 + breathe.value * 0.06 }] }));
+  const ringStyle = useAnimatedStyle(() => ({ opacity: 0.75 + breathe.value * 0.25, transform: [{ scale: 1 + breathe.value * 0.03 }] }));
   const wordStyle = useAnimatedStyle(() => ({ opacity: 1 - exit.value * 1.6, transform: [{ translateY: -exit.value * 12 }] }));
   const tagStyle = useAnimatedStyle(() => ({ opacity: tagline.value * (1 - exit.value * 1.6), transform: [{ translateY: (1 - tagline.value) * 8 }] }));
 
@@ -126,8 +140,9 @@ export function AnimatedSplash({ ready, onDone }: { ready: boolean; onDone: () =
           <Svg width={420} height={420}>
             <Defs>
               <RadialGradient id="splash-bloom" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor="#D979A2" stopOpacity={0.42} />
-                <Stop offset="0.4" stopColor="#8E83E0" stopOpacity={0.16} />
+                <Stop offset="0" stopColor="#F2C879" stopOpacity={0.3} />
+                <Stop offset="0.28" stopColor="#5B4BE0" stopOpacity={0.3} />
+                <Stop offset="0.6" stopColor="#3B2FB0" stopOpacity={0.14} />
                 <Stop offset="1" stopColor="#0B0B1A" stopOpacity={0} />
               </RadialGradient>
             </Defs>
@@ -135,12 +150,17 @@ export function AnimatedSplash({ ready, onDone }: { ready: boolean; onDone: () =
           </Svg>
         </Animated.View>
         {!reduced ? (
-          <View style={[styles.orbits, { transform: [{ translateY: MARK_OFFSET + 2 }] }]}>
-            <Orbit size={190} delay={260} duration={9000} dot="#F7DDA6" />
-            <Orbit size={250} delay={420} duration={14000} dot="#F0A0BD" reverse />
+          <View style={[styles.orbits, { transform: [{ translateY: MARK_OFFSET }] }]} pointerEvents="none">
+            <Ripple delay={420} />
+            <Ripple delay={820} />
           </View>
         ) : null}
-        <Animated.View style={markStyle}><BrandMark size={MARK} /></Animated.View>
+        {!reduced ? SPARKS.map((sp, i) => <Spark key={i} {...sp} />) : null}
+        <Animated.View style={markStyle}>
+          <Animated.View style={[StyleSheet.absoluteFill, ringStyle]}><BrandMark size={MARK} layer="ring" /></Animated.View>
+          <Animated.View style={[StyleSheet.absoluteFill, diagStyle]}><BrandMark size={MARK} layer="diagonal" /></Animated.View>
+          <BrandMark size={MARK} layer="long" />
+        </Animated.View>
         <Animated.View style={[styles.word, wordStyle]}>
           {reduced ? <AppText style={styles.letter}>{WORD}</AppText> : WORD.split("").map((c, i) => <Letter key={i} char={c} index={i} />)}
         </Animated.View>
@@ -158,13 +178,12 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   bloom: { position: "absolute", width: 420, height: 420, marginTop: MARK_OFFSET * 2 },
   orbits: { position: "absolute", alignItems: "center", justifyContent: "center" },
-  orbit: { position: "absolute", borderWidth: 1, borderColor: "rgba(242,200,121,0.22)" },
-  planet: { position: "absolute", top: -4, width: 8, height: 8, borderRadius: 4, shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } },
-  word: { position: "absolute", flexDirection: "row", marginTop: 148 },
+  ripple: { position: "absolute", width: MARK * 0.7, height: MARK * 0.7, borderRadius: MARK * 0.35, borderWidth: 1, borderColor: "rgba(131,116,240,0.9)" },
+  word: { position: "absolute", flexDirection: "row", marginTop: 176 },
   // Wide-tracked champagne capitals in a high-contrast display serif.
   letter: { fontFamily: fonts.wordmark, fontSize: 34, lineHeight: 42, color: "#F2E4C4", letterSpacing: 9 },
-  hairline: { position: "absolute", marginTop: 222, flexDirection: "row", alignItems: "center", gap: 8 },
+  hairline: { position: "absolute", marginTop: 250, flexDirection: "row", alignItems: "center", gap: 8 },
   rule: { height: StyleSheet.hairlineWidth * 2, backgroundColor: "rgba(242,200,121,0.55)" },
-  tag: { position: "absolute", marginTop: 262 },
+  tag: { position: "absolute", marginTop: 290 },
   tagText: { fontFamily: fonts.semibold, fontSize: 10, letterSpacing: 3.2, color: "rgba(242,228,196,0.62)" },
 });
