@@ -1008,12 +1008,16 @@ async def entitlement_sync(body: EntitlementSync, user: dict = User):
 
 
 def _tier_from_rc(entitlements: dict) -> tuple[str, Optional[str]]:
-    for name in ("founder_lifetime", "lifetime", "premium_annual", "premium_monthly", "premium"):
+    # "astronow_pro" is the entitlement configured in RevenueCat; the others are older names.
+    for name in ("founder_lifetime", "lifetime", "premium_annual", "premium_monthly", "premium", "astronow_pro"):
         ent = entitlements.get(name)
         if ent and ent.get("expires_date") is None:
             return ("lifetime" if "lifetime" in name else name), None
         if ent:
-            return (name if name != "premium" else "premium_monthly"), ent.get("expires_date")
+            if name in ("premium", "astronow_pro"):
+                annual = "annual" in str(ent.get("product_identifier", ""))
+                return ("premium_annual" if annual else "premium_monthly"), ent.get("expires_date")
+            return name, ent.get("expires_date")
     return "free", None
 
 
