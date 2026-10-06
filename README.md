@@ -76,7 +76,7 @@ Products and the `premium` entitlement must be created in RevenueCat and mapped 
 ```bash
 cd backend
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -r requirements-dev.txt
 cp .env.example .env
 .venv/bin/uvicorn server:app --reload --host 0.0.0.0 --port 8000
 ```

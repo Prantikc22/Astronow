@@ -41,10 +41,37 @@ PHONE_EMAIL_DOMAIN = "phone.astronow.app"
 
 _http = httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=8.0))
 
-# In-memory state is fine for a single API process. Behind several instances,
-# move these to Redis or a table so a code sent by one instance verifies on another.
-_pending: dict[str, dict] = {}        # e164 -> {verification_id, expires, attempts}
+# Pending codes live in saved_items (under a system user id) so a code sent by
+# one serverless instance verifies on another. Memory is the fallback when the
+# database is off (local tests). The per-IP limit is per instance, best effort.
+SYSTEM_USER = "00000000-0000-0000-0000-000000000000"
+_pending: dict[str, dict] = {}        # e164 -> {verification_id, expires, attempts, sends}
 _send_log: dict[str, list[float]] = {}  # rate-limit key -> send timestamps
+
+
+async def _load(e164: str) -> Optional[dict]:
+    if db.enabled():
+        row = await db.one("saved_items", "payload", filters={"user_id": SYSTEM_USER, "kind": f"otp:{e164}"})
+        return (row or {}).get("payload") or None
+    return _pending.get(e164)
+
+
+async def _save(e164: str, rec: dict) -> None:
+    if db.enabled():
+        kind = f"otp:{e164}"
+        if await db.one("saved_items", "id", filters={"user_id": SYSTEM_USER, "kind": kind}):
+            await db.update("saved_items", {"payload": rec}, filters={"user_id": SYSTEM_USER, "kind": kind})
+        else:
+            await db.insert("saved_items", {"user_id": SYSTEM_USER, "kind": kind, "payload": rec})
+    else:
+        _pending[e164] = rec
+
+
+async def _clear(e164: str) -> None:
+    """Spends the code but keeps the send history for rate limiting."""
+    rec = await _load(e164)
+    if rec:
+        await _save(e164, {"sends": rec.get("sends", [])})
 
 
 def configured() -> bool:
@@ -77,10 +104,14 @@ async def send_code(country_code: str, number: str, client_ip: str) -> dict:
     if not configured():
         raise HTTPException(503, "Mobile sign-in is not configured on the server.")
     cc, digits, e164 = normalize(country_code, number)
-    pending = _pending.get(e164)
-    if pending and time.time() - pending["sent_at"] < 30:
+    pending = await _load(e164) or {}
+    now = time.time()
+    if now - pending.get("sent_at", 0) < 30:
         raise HTTPException(429, "Please wait a few seconds before requesting another code.")
-    _rate_limit(f"phone:{e164}", 5, 3600)
+    sends = [t for t in pending.get("sends", []) if now - t < 3600]
+    if len(sends) >= 5:
+        minutes = max(1, int((3600 - (now - sends[0])) // 60) + 1)
+        raise HTTPException(429, f"Too many codes requested. Please try again in about {minutes} min.")
     _rate_limit(f"ip:{client_ip}", 20, 3600)
     r = await _http.post(f"{MC_BASE}/verification/v3/send", headers={"authToken": MC_TOKEN}, params={
         "countryCode": cc, "customerId": MC_CUSTOMER, "flowType": "SMS", "mobileNumber": digits, "otpLength": OTP_LENGTH,
@@ -98,23 +129,24 @@ async def send_code(country_code: str, number: str, client_ip: str) -> dict:
             raise HTTPException(422, "This country code isn't supported yet.")
         raise HTTPException(502, "We couldn't send the code right now. Please try again.")
     timeout = int(str(data.get("timeout") or "60").split(".")[0] or 60)
-    _pending[e164] = {"verification_id": str(data["verificationId"]), "sent_at": time.time(),
-                      "expires": time.time() + max(timeout, 60) + 240, "attempts": 0}
+    await _save(e164, {"verification_id": str(data["verificationId"]), "sent_at": now,
+                       "expires": now + max(timeout, 60) + 240, "attempts": 0, "sends": sends + [now]})
     return {"sent": True, "phone": e164, "length": OTP_LENGTH, "resend_after": 30}
 
 
 async def check_code(country_code: str, number: str, code: str) -> str:
     """Validates the OTP with VerifyNow. Returns the E.164 number on success."""
     _, _, e164 = normalize(country_code, number)
-    pending = _pending.get(e164)
-    if not pending or pending["expires"] < time.time():
+    pending = await _load(e164)
+    if not pending or not pending.get("verification_id") or pending["expires"] < time.time():
         raise HTTPException(400, "This code has expired. Please request a new one.")
     if not re.fullmatch(r"\d{4,8}", code or ""):
         raise HTTPException(422, "Enter the code from the SMS.")
     pending["attempts"] += 1
     if pending["attempts"] > 5:
-        _pending.pop(e164, None)
+        await _clear(e164)
         raise HTTPException(429, "Too many wrong attempts. Please request a new code.")
+    await _save(e164, pending)
     params = {"verificationId": pending["verification_id"], "code": code, "customerId": MC_CUSTOMER, "flowType": "SMS"}
     r = await _http.get(f"{MC_BASE}/verification/v3/validateOtp", headers={"authToken": MC_TOKEN}, params=params)
     if r.status_code == 405:
@@ -123,15 +155,15 @@ async def check_code(country_code: str, number: str, code: str) -> str:
     status = (body.get("data") or {}).get("verificationStatus")
     code_num = body.get("responseCode")
     if r.status_code == 200 and status == "VERIFICATION_COMPLETED":
-        _pending.pop(e164, None)
+        await _clear(e164)
         return e164
     if code_num == 702:
         raise HTTPException(400, "That code isn't right. Please check and try again.")
     if code_num in (705, 505):
-        _pending.pop(e164, None)
+        await _clear(e164)
         raise HTTPException(400, "This code has expired. Please request a new one.")
     if code_num == 703:
-        _pending.pop(e164, None)
+        await _clear(e164)
         raise HTTPException(400, "This code was already used. Please request a new one.")
     logger.warning("VerifyNow validate failed %s %s", r.status_code, str(body)[:200])
     raise HTTPException(502, "We couldn't verify the code right now. Please try again.")

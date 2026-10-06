@@ -12,7 +12,7 @@ from datetime import date, datetime, time as dtime, timedelta, timezone
 from typing import Any, Literal, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
@@ -395,7 +395,33 @@ def _energy_meter(transits: dict) -> dict:
     return {k: {"value": v, "label": labels[v]} for k, v in expanded.items()}
 
 
-_daily_generation_tasks: dict[str, asyncio.Task] = {}
+# Slow AI work (daily readings, reports) runs as a FastAPI background task: it
+# starts after the response is sent and, on serverless hosts, keeps the same
+# invocation alive until it finishes. A lock row in saved_items makes sure
+# concurrent polls from any instance start the work once.
+_LOCK_TTL = 300
+
+
+async def _claim(user_id: str, cache_key: str) -> bool:
+    kind = f"lock:{cache_key}"
+    row = await db.one("saved_items", "id,created_at", filters={"user_id": user_id, "kind": kind})
+    if row:
+        try:
+            started = datetime.fromisoformat(str(row["created_at"]).replace("Z", "+00:00"))
+        except ValueError:
+            started = datetime.min.replace(tzinfo=timezone.utc)
+        if (datetime.now(timezone.utc) - started).total_seconds() < _LOCK_TTL:
+            return False
+        await db.delete("saved_items", filters={"id": row["id"]})
+    await db.insert("saved_items", {"user_id": user_id, "kind": kind, "payload": {}})
+    return True
+
+
+async def _release(user_id: str, cache_key: str) -> None:
+    try:
+        await db.delete("saved_items", filters={"user_id": user_id, "kind": f"lock:{cache_key}"})
+    except Exception:  # noqa: BLE001 - a stale lock simply expires
+        logger.warning("Could not release lock %s", cache_key)
 
 
 async def _generate_and_cache_daily(cache_key: str, user_id: str, language: str, request: str) -> None:
@@ -422,11 +448,11 @@ async def _generate_and_cache_daily(cache_key: str, user_id: str, language: str,
     except Exception:  # noqa: BLE001 - a background refresh must never break /today
         logger.exception("Background daily reading generation failed")
     finally:
-        _daily_generation_tasks.pop(f"{user_id}:{cache_key}", None)
+        await _release(user_id, cache_key)
 
 
 @api.get("/today")
-async def today(user: dict = User, day: Optional[str] = None):
+async def today(background: BackgroundTasks, user: dict = User, day: Optional[str] = None):
     _require_db()
     if day:
         try:
@@ -441,11 +467,11 @@ async def today(user: dict = User, day: Optional[str] = None):
     if not data:
         raise HTTPException(404, "Complete onboarding first.")
     profile = await get_profile(user["id"])
-    return await _today_payload(user["id"], data, profile, (profile or {}).get("first_name"), reading_day, "self")
+    return await _today_payload(user["id"], data, profile, (profile or {}).get("first_name"), reading_day, "self", background)
 
 
 async def _today_payload(user_id: str, data: dict, profile: Optional[dict], name: Optional[str],
-                         reading_day: date, scope: str) -> dict:
+                         reading_day: date, scope: str, background: BackgroundTasks) -> dict:
     """Daily reading for any chart the user owns (their own or a family member's).
     Location, language and terminology always come from the account holder."""
     chart, dashas = data["chart"], data["dasha"]
@@ -468,11 +494,8 @@ async def _today_payload(user_id: str, data: dict, profile: Optional[dict], name
     reading = (cached or {}).get("payload")
     if not daily_reading.valid_reading(reading, language, require_categories=True):
         reading = daily_reading.fallback_reading(language)
-        task_key = f"{user_id}:{cache_key}"
-        if task_key not in _daily_generation_tasks:
-            _daily_generation_tasks[task_key] = asyncio.create_task(
-                _generate_and_cache_daily(cache_key, user_id, language, request)
-            )
+        if await _claim(user_id, cache_key):
+            background.add_task(_generate_and_cache_daily, cache_key, user_id, language, request)
         reading_status = "generating"
     else:
         reading_status = "ready"
@@ -1102,7 +1125,7 @@ async def family_delete(member_id: str, user: dict = User):
 
 
 @api.get("/family/{member_id}/today")
-async def family_today(member_id: str, user: dict = User, day: Optional[str] = None):
+async def family_today(member_id: str, background: BackgroundTasks, user: dict = User, day: Optional[str] = None):
     _require_db()
     row = await db.one("saved_profiles", "*", filters={"id": member_id, "user_id": user["id"], "deleted_at": None})
     if not row:
@@ -1113,7 +1136,7 @@ async def family_today(member_id: str, user: dict = User, day: Optional[str] = N
     full = _member_chart(row)
     data = {"chart": full["chart"], "dasha": full["dasha"], "computed_at": row.get("created_at")}
     profile = await get_profile(user["id"])
-    return await _today_payload(user["id"], data, profile, row["name"], reading_day, f"member-{member_id}")
+    return await _today_payload(user["id"], data, profile, row["name"], reading_day, f"member-{member_id}", background)
 
 
 # --------------------------------------------------------------------------- #
@@ -1307,8 +1330,6 @@ async def questions_sync(user: dict = User):
 # --------------------------------------------------------------------------- #
 # Personal AI reports
 # --------------------------------------------------------------------------- #
-_report_tasks: dict[str, asyncio.Task] = {}
-
 
 def _report_context(data: dict, tr: dict, numerology: Optional[dict]) -> dict:
     chart, dasha = data["chart"], data.get("dasha") or {}
@@ -1351,11 +1372,11 @@ async def _generate_report(cache_key: str, user_id: str, slug: str, request: str
     except Exception:  # noqa: BLE001 - background work must never crash the server
         logger.exception("Personal report generation failed")
     finally:
-        _report_tasks.pop(f"{user_id}:{cache_key}", None)
+        await _release(user_id, cache_key)
 
 
 @api.get("/reports/{slug}/personal")
-async def personal_report(slug: str, user: dict = User):
+async def personal_report(slug: str, background: BackgroundTasks, user: dict = User):
     _require_db()
     if slug not in report_ai.BRIEFS:
         raise HTTPException(404, "Report not found.")
@@ -1374,13 +1395,12 @@ async def personal_report(slug: str, user: dict = User):
     cached = await db.one("saved_items", "payload", filters={"user_id": user["id"], "kind": cache_key})
     if cached and report_ai.valid_report(cached.get("payload"), slug):
         return {"status": "ready", "report": cached["payload"]}
-    task_key = f"{user['id']}:{cache_key}"
-    if task_key not in _report_tasks:
+    if await _claim(user["id"], cache_key):
         tr = transit_mod.compute_transits(data["chart"])
         ctx = _report_context(data, tr, data.get("numerology"))
         request = report_ai.report_prompt(slug, (profile or {}).get("first_name") or "friend",
                                           (profile or {}).get("terminology_mode", "both"), language, json.dumps(ctx, default=str))
-        _report_tasks[task_key] = asyncio.create_task(_generate_report(cache_key, user["id"], slug, request))
+        background.add_task(_generate_report, cache_key, user["id"], slug, request)
     return {"status": "generating"}
 
 

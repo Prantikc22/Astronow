@@ -17,6 +17,9 @@ class FakeDB:
     def __init__(self):
         self.rows = []
 
+    def enabled(self):
+        return False  # pending codes stay in memory for these tests
+
     async def one(self, table, columns="*", *, filters=None):
         for r in self.rows:
             if r["kind"] == filters.get("kind") and r.get("deleted_at") is None:
@@ -62,7 +65,7 @@ def test_send_then_verify_success(monkeypatch):
     out = run(phone_auth.send_code("91", "9876543210", "1.1.1.1"))
     assert out["sent"] and out["phone"] == "+919876543210"
     assert run(phone_auth.check_code("91", "9876543210", "123456")) == "+919876543210"
-    assert "+919876543210" not in phone_auth._pending  # a code can't be reused
+    assert "verification_id" not in phone_auth._pending["+919876543210"]  # a code can't be reused
 
 
 def test_wrong_code_and_attempt_limit(monkeypatch):

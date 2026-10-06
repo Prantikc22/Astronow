@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Tests
+pytest>=8,<9
+pytest-xdist>=3,<4
+requests>=2.32,<3

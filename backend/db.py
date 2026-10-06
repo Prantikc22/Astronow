@@ -52,11 +52,24 @@ async def close() -> None:
         _client = None
 
 
+def _lazy() -> None:
+    """Serverless hosts may skip ASGI startup, so create the client on first use."""
+    global _client
+    if _client is None and config.SUPABASE_URL and config.SUPABASE_SERVICE_ROLE_KEY:
+        _client = httpx.AsyncClient(
+            base_url=f"{config.SUPABASE_URL}/rest/v1",
+            headers={"apikey": config.SUPABASE_SERVICE_ROLE_KEY,
+                     "Authorization": f"Bearer {config.SUPABASE_SERVICE_ROLE_KEY}",
+                     "Content-Type": "application/json"}, timeout=30)
+
+
 def enabled() -> bool:
+    _lazy()
     return _client is not None
 
 
 def _require() -> httpx.AsyncClient:
+    _lazy()
     if not _client:
         raise RuntimeError("Supabase Data API is not initialized")
     return _client
