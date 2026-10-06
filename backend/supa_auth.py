@@ -110,8 +110,11 @@ async def get_user_from_token(token: str) -> dict:
         # Phone-only accounts carry a hidden sign-in address; never show it as "their email".
         if email and email.endswith("@phone.astronow.app"):
             email = None
+        # App Store and Play reviewers can't receive Indian SMS codes, so their
+        # dedicated accounts (REVIEW_EMAILS) skip the mobile-number step.
+        reviewer = bool(email) and email.lower() in config.REVIEW_EMAILS
         user = {"id": u["id"], "email": email, "first_name": meta.get("first_name"), "phone": phone,
-                "phone_verified": bool(u.get("phone_confirmed_at") or meta.get("phone_verified"))}
+                "phone_verified": reviewer or bool(u.get("phone_confirmed_at") or meta.get("phone_verified"))}
         _token_cache[token] = (user, now + _CACHE_TTL)
         return user
 

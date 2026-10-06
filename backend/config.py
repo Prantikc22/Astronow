@@ -29,6 +29,8 @@ AI_MODELS = {
 GOOGLE_PLACES_API_KEY = _get("GOOGLE_PLACES_API_KEY")
 
 REVENUECAT_IOS_API_KEY = _get("REVENUECAT_IOS_API_KEY")
+# Store-review accounts that skip mobile verification (comma-separated emails).
+REVIEW_EMAILS = {e.strip().lower() for e in _get("REVIEW_EMAILS", "demo@astronow.com").split(",") if e.strip()}
 REVENUECAT_ANDROID_API_KEY = _get("REVENUECAT_ANDROID_API_KEY")
 
 FREE_CHAT_ALLOWANCE = int(_get("FREE_CHAT_ALLOWANCE", "10"))
