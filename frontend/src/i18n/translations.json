@@ -1326,7 +1326,14 @@
     "account": "account",
     "Welcome": "Welcome",
     "back": "back",
-    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Google sign-in is arriving in the next update. Use your mobile number for now."
+    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Google sign-in is arriving in the next update. Use your mobile number for now.",
+    "Privacy Policy": "Privacy Policy",
+    "Terms of Use": "Terms of Use",
+    "Continue with email": "Continue with email",
+    "By continuing you agree to our": "By continuing you agree to our",
+    "Terms": "Terms",
+    "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.": "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.",
+    "Restoring…": "Restoring…"
   },
   "hi": {
     "·  Sub-period: ${data.current_antardasha.lord}": "· उप-काल: ${data.current_antardasha.lord}",
@@ -2655,7 +2662,14 @@
     "account": "खाता",
     "Welcome": "फिर से",
     "back": "स्वागत है",
-    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Google साइन-इन अगले अपडेट में आ रहा है। फ़िलहाल अपने मोबाइल नंबर का उपयोग करें।"
+    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Google साइन-इन अगले अपडेट में आ रहा है। फ़िलहाल अपने मोबाइल नंबर का उपयोग करें।",
+    "Privacy Policy": "गोपनीयता नीति",
+    "Terms of Use": "उपयोग की शर्तें",
+    "Continue with email": "ईमेल के साथ जारी रखें",
+    "By continuing you agree to our": "जारी रखकर, आप स्वीकार करते हैं हमारी",
+    "Terms": "शर्तें",
+    "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.": "AstroNow Plus दिखाए गए मूल्य पर स्वचालित रूप से नवीनीकृत हो जाता है, जब तक कि अवधि समाप्त होने से कम से कम 24 घंटे पहले इसे रद्द न किया जाए। भुगतान आपके App Store या Google Play खाते से लिया जाता है। अपनी स्टोर खाता सेटिंग्स में किसी भी समय इसे प्रबंधित या रद्द करें।",
+    "Restoring…": "पुनर्स्थापित किया जा रहा है…"
   },
   "bn": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  উপ-পর্ব: ${data.current_antardasha.lord}",
@@ -3984,7 +3998,14 @@
     "account": "অ্যাকাউন্ট",
     "Welcome": "স্বাগতম",
     "back": "আবারও",
-    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Google সাইন-ইন পরবর্তী আপডেটে আসছে। আপাতত আপনার মোবাইল নম্বর ব্যবহার করুন।"
+    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Google সাইন-ইন পরবর্তী আপডেটে আসছে। আপাতত আপনার মোবাইল নম্বর ব্যবহার করুন।",
+    "Privacy Policy": "গোপনীয়তা নীতি",
+    "Terms of Use": "ব্যবহারের শর্তাবলী",
+    "Continue with email": "ইমেল দিয়ে চালিয়ে যান",
+    "By continuing you agree to our": "চালিয়ে যাওয়ার মাধ্যমে আপনি আমাদের",
+    "Terms": "শর্তাবলী",
+    "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.": "মেয়াদ শেষ হওয়ার কমপক্ষে ২৪ ঘণ্টা আগে বাতিল না করা হলে AstroNow Plus প্রদর্শিত মূল্যে স্বয়ংক্রিয়ভাবে পুনর্নবীকরণ হয়ে যাবে। পেমেন্ট আপনার App Store বা Google Play অ্যাকাউন্টে চার্জ করা হবে। আপনার স্টোর অ্যাকাউন্ট সেটিংসে যেকোনো সময় এটি পরিচালনা বা বাতিল করুন।",
+    "Restoring…": "পুনরুদ্ধার করা হচ্ছে…"
   },
   "ta": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  துணை காலம்: ${data.current_antardasha.lord}",
@@ -5313,7 +5334,14 @@
     "account": "உங்கள் கணக்கை",
     "Welcome": "மீண்டும்",
     "back": "நல்வரவு",
-    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Google உள்நுழைவு அடுத்த புதுப்பிப்பில் வரவுள்ளது. தற்போதைக்கு உங்கள் மொபைல் எண்ணைப் பயன்படுத்தவும்."
+    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Google உள்நுழைவு அடுத்த புதுப்பிப்பில் வரவுள்ளது. தற்போதைக்கு உங்கள் மொபைல் எண்ணைப் பயன்படுத்தவும்.",
+    "Privacy Policy": "தனியுரிமைக் கொள்கை",
+    "Terms of Use": "பயன்பாட்டு விதிமுறைகள்",
+    "Continue with email": "மின்னஞ்சல் மூலம் தொடரவும்",
+    "By continuing you agree to our": "தொடர்வதன் மூலம் நீங்கள் ஏற்றுக்கொள்வது எங்களின்",
+    "Terms": "விதிமுறைகள்",
+    "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.": "கால அளவு முடிவதற்கு குறைந்தது 24 மணிநேரத்திற்கு முன்பே ரத்து செய்யப்படாவிட்டால், காட்டப்படும் விலையில் AstroNow Plus தானாகவே புதுப்பிக்கப்படும். கட்டணம் உங்கள் App Store அல்லது Google Play கணக்கில் வசூலிக்கப்படும். உங்கள் ஸ்டோர் கணக்கு அமைப்புகளில் எப்போது வேண்டுமானாலும் நிர்வகிக்கலாம் அல்லது ரத்து செய்யலாம்.",
+    "Restoring…": "மீட்டமைக்கப்படுகிறது…"
   },
   "te": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  ఉప-కాలం: ${data.current_antardasha.lord}",
@@ -6642,7 +6670,14 @@
     "account": "మీ ఖాతా",
     "Welcome": "తిరిగి",
     "back": "స్వాగతం",
-    "Google sign-in is arriving in the next update. Use your mobile number for now.": "తదుపరి అప్‌డేట్‌లో Google సైన్-ఇన్ అందుబాటులోకి వస్తుంది. ప్రస్తుతానికి మీ మొబైల్ నంబర్‌ను ఉపయోగించండి."
+    "Google sign-in is arriving in the next update. Use your mobile number for now.": "తదుపరి అప్‌డేట్‌లో Google సైన్-ఇన్ అందుబాటులోకి వస్తుంది. ప్రస్తుతానికి మీ మొబైల్ నంబర్‌ను ఉపయోగించండి.",
+    "Privacy Policy": "గోప్యతా విధానం",
+    "Terms of Use": "వినియోగ నిబంధనలు",
+    "Continue with email": "ఇమెయిల్‌తో కొనసాగండి",
+    "By continuing you agree to our": "కొనసాగించడం ద్వారా, మీరు మా",
+    "Terms": "నిబంధనలు",
+    "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.": "వ్యవధి ముగియడానికి కనీసం 24 గంటల ముందు రద్దు చేయకపోతే, AstroNow Plus చూపించిన ధరకు ఆటోమేటిక్‌గా పునరుద్ధరించబడుతుంది. చెల్లింపు మీ App Store లేదా Google Play ఖాతాకు ఛార్జ్ చేయబడుతుంది. మీ స్టోర్ ఖాతా సెట్టింగ్‌లలో ఎప్పుడైనా నిర్వహించండి లేదా రద్దు చేయండి.",
+    "Restoring…": "పునరుద్ధరిస్తోంది…"
   },
   "es": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  Sub-período: ${data.current_antardasha.lord}",
@@ -7971,7 +8006,14 @@
     "account": "cuenta",
     "Welcome": "Bienvenido",
     "back": "de nuevo",
-    "Google sign-in is arriving in the next update. Use your mobile number for now.": "El inicio de sesión con Google estará disponible en la próxima actualización. Por ahora, usa tu número de móvil."
+    "Google sign-in is arriving in the next update. Use your mobile number for now.": "El inicio de sesión con Google estará disponible en la próxima actualización. Por ahora, usa tu número de móvil.",
+    "Privacy Policy": "Política de privacidad",
+    "Terms of Use": "Términos de uso",
+    "Continue with email": "Continuar con correo electrónico",
+    "By continuing you agree to our": "Al continuar, aceptas nuestros",
+    "Terms": "Términos",
+    "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.": "AstroNow Plus se renueva automáticamente al precio mostrado a menos que se cancele al menos 24 horas antes de que finalice el período. El pago se cargará a tu cuenta de App Store o Google Play. Gestiona o cancela en cualquier momento en los ajustes de la cuenta de tu tienda.",
+    "Restoring…": "Restaurando…"
   },
   "fr": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  Sous-période : ${data.current_antardasha.lord}",
@@ -9300,7 +9342,14 @@
     "account": "compte",
     "Welcome": "Ravi de vous",
     "back": "revoir",
-    "Google sign-in is arriving in the next update. Use your mobile number for now.": "La connexion avec Google arrive dans la prochaine mise à jour. Utilisez votre numéro de mobile pour l'instant."
+    "Google sign-in is arriving in the next update. Use your mobile number for now.": "La connexion avec Google arrive dans la prochaine mise à jour. Utilisez votre numéro de mobile pour l'instant.",
+    "Privacy Policy": "Politique de confidentialité",
+    "Terms of Use": "Conditions d'utilisation",
+    "Continue with email": "Continuer avec l'e-mail",
+    "By continuing you agree to our": "En continuant, vous acceptez nos",
+    "Terms": "Conditions",
+    "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.": "AstroNow Plus se renouvelle automatiquement au prix indiqué, sauf annulation au moins 24 heures avant la fin de la période. Le paiement est débité sur votre compte App Store ou Google Play. Gérez ou annulez à tout moment dans les paramètres de votre compte du store.",
+    "Restoring…": "Restauration…"
   },
   "de": {
     "·  Sub-period: ${data.current_antardasha.lord}": "·  Teilzeitraum: ${data.current_antardasha.lord}",
@@ -10629,7 +10678,14 @@
     "account": "Konto",
     "Welcome": "Willkommen",
     "back": "zurück",
-    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Die Google-Anmeldung folgt im nächsten Update. Nutze vorerst deine Mobilnummer."
+    "Google sign-in is arriving in the next update. Use your mobile number for now.": "Die Google-Anmeldung folgt im nächsten Update. Nutze vorerst deine Mobilnummer.",
+    "Privacy Policy": "Datenschutzerklärung",
+    "Terms of Use": "Nutzungsbedingungen",
+    "Continue with email": "Mit E-Mail fortfahren",
+    "By continuing you agree to our": "Mit dem Fortfahren akzeptierst du unsere",
+    "Terms": "Nutzungsbedingungen",
+    "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.": "AstroNow Plus verlängert sich automatisch zum angezeigten Preis, sofern es nicht mindestens 24 Stunden vor Ablauf des Zeitraums gekündigt wird. Die Zahlung wird über dein App Store- oder Google Play-Konto abgerechnet. Du kannst das Abo jederzeit in den Einstellungen deines Store-Kontos verwalten oder kündigen.",
+    "Restoring…": "Wird wiederhergestellt…"
   },
   "pt": {
     "·  Sub-period: ${data.current_antardasha.lord}": "· Sub-período: ${data.current_antardasha.lord}",
@@ -11958,6 +12014,13 @@
     "account": "conta",
     "Welcome": "Bem-vindo",
     "back": "de volta",
-    "Google sign-in is arriving in the next update. Use your mobile number for now.": "O login com o Google chegará na próxima atualização. Use seu número de celular por enquanto."
+    "Google sign-in is arriving in the next update. Use your mobile number for now.": "O login com o Google chegará na próxima atualização. Use seu número de celular por enquanto.",
+    "Privacy Policy": "Política de Privacidade",
+    "Terms of Use": "Termos de Uso",
+    "Continue with email": "Continuar com e-mail",
+    "By continuing you agree to our": "Ao continuar, você concorda com nossos",
+    "Terms": "Termos",
+    "AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.": "O AstroNow Plus é renovado automaticamente pelo valor exibido, a menos que seja cancelado pelo menos 24 horas antes do fim do período. O pagamento é cobrado na sua conta da App Store ou do Google Play. Gerencie ou cancele a qualquer momento nas configurações de conta da loja.",
+    "Restoring…": "Restaurando…"
   }
 }

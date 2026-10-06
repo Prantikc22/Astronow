@@ -17,6 +17,7 @@ import { OtpInput, PhoneInput } from "@/src/components/PhoneInput";
 import { TactileButton } from "@/src/components/TactileButton";
 import { TextField } from "@/src/components/TextField";
 import { countryByIso, defaultCountryIso } from "@/src/content/countries";
+import { LINKS, openLink } from "@/src/content/links";
 import { useI18n } from "@/src/i18n";
 import { useAuth } from "@/src/store/auth";
 import { fonts, makeStyles, useTheme } from "@/src/theme";
@@ -199,11 +200,15 @@ export default function AuthScreen() {
 
           <Animated.View entering={FadeInUp.delay(enterAt + 900).duration(520).easing(ease)} style={{ gap: 12, marginTop: 22 }}>
             <TactileButton label="Continue with mobile" icon="phone" onPress={() => go("phone")} testID="auth-start-phone" />
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <TactileButton tone="dark" label="Google" style={{ flex: 1 }} onPress={google} testID="auth-google" haptic="light"
-                iconNode={<View style={styles.gBadge}><AppText style={styles.gGlyph}>G</AppText></View>} />
-              <TactileButton tone="dark" label="Email" icon="mail" style={{ flex: 1 }} onPress={() => go("email")} testID="auth-start-email" haptic="light" />
-            </View>
+            {googleReady ? (
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <TactileButton tone="dark" label="Google" style={{ flex: 1 }} onPress={google} testID="auth-google" haptic="light"
+                  iconNode={<View style={styles.gBadge}><AppText style={styles.gGlyph}>G</AppText></View>} />
+                <TactileButton tone="dark" label="Email" icon="mail" style={{ flex: 1 }} onPress={() => go("email")} testID="auth-start-email" haptic="light" />
+              </View>
+            ) : (
+              <TactileButton tone="dark" label="Continue with email" icon="mail" onPress={() => go("email")} testID="auth-start-email" haptic="light" />
+            )}
             {messages}
             {isPreviewMode() ? (
               <MotionPressable onPress={() => { enterPreview(); router.replace("/"); }} style={styles.previewButton} testID="auth-preview">
@@ -211,7 +216,12 @@ export default function AuthScreen() {
                 <AppText variant="caption" muted>Preview the app without an account</AppText>
               </MotionPressable>
             ) : null}
-            <AppText center style={styles.legal}>By continuing you agree to our Terms and Privacy Policy.</AppText>
+            <AppText center style={styles.legal}>
+              By continuing you agree to our{" "}
+              <AppText style={[styles.legal, styles.legalLink]} onPress={() => openLink(LINKS.terms)}>Terms</AppText>
+              {" & "}
+              <AppText style={[styles.legal, styles.legalLink]} onPress={() => openLink(LINKS.privacy)}>Privacy Policy</AppText>
+            </AppText>
           </Animated.View>
         </Animated.View>
       </View>
@@ -338,6 +348,7 @@ const useStyles = makeStyles((colors) => ({
   kicker: { marginTop: 12, fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1.5, color: "rgba(170,166,190,0.9)" },
   gBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.ivory, alignItems: "center", justifyContent: "center" },
   gGlyph: { color: "#4263EB", fontFamily: fonts.bold, fontSize: 13, lineHeight: 16 },
+  legalLink: { textDecorationLine: "underline", color: "rgba(214,208,230,0.9)" },
   legal: { fontSize: 11.5, lineHeight: 16, color: "rgba(170,166,190,0.75)", marginTop: 2 },
   previewButton: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 7, padding: 4 },
   stepContent: { flexGrow: 1, paddingHorizontal: 22, paddingBottom: 24 },

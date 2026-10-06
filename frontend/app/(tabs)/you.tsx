@@ -12,6 +12,7 @@ import { GlassCard } from "@/src/components/GlassCard";
 import { EditorialFooter } from "@/src/components/EditorialFooter";
 import { Icon, type FeatherName } from "@/src/components/Icon";
 import { MotionPressable } from "@/src/components/MotionPressable";
+import { LINKS, openLink } from "@/src/content/links";
 import { READING_LANGUAGES, readingLanguageName } from "@/src/content/languages";
 import { Screen } from "@/src/components/Screen";
 import { Shine } from "@/src/components/Shine";
@@ -244,6 +245,10 @@ export default function You() {
         AstroNow offers astrology for reflection and self-understanding. It is not a
         substitute for professional medical, legal, or financial advice.
       </AppText>
+      <View style={{ flexDirection: "row", justifyContent: "center", gap: 18, marginTop: 10 }}>
+        <MotionPressable onPress={() => openLink(LINKS.privacy)} hitSlop={8} testID="you-privacy"><AppText variant="caption" style={{ color: colors.violet }}>Privacy Policy</AppText></MotionPressable>
+        <MotionPressable onPress={() => openLink(LINKS.terms)} hitSlop={8} testID="you-terms"><AppText variant="caption" style={{ color: colors.violet }}>Terms of Use</AppText></MotionPressable>
+      </View>
       <EditorialFooter kicker="NO FLUFF. CLEAR GUIDANCE." title={"Your chart is personal.\nYour choices stay yours."} note="Made with care in India, for curious minds everywhere." />
       <Modal visible={picker !== null} transparent animationType="slide" onRequestClose={() => setPicker(null)}>
         <View style={styles.modalRoot}>

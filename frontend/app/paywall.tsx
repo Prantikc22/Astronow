@@ -17,7 +17,8 @@ import { pop, rise, springs } from "@/src/motion";
 import { MotionPressable } from "@/src/components/MotionPressable";
 import { isPreviewSession } from "@/src/api/preview";
 import { useAppConfig } from "@/src/hooks";
-import { buyPackage, findPackage, getCurrentOffering, hasActiveEntitlement } from "@/src/services/purchases";
+import { buyPackage, findPackage, getCurrentOffering, hasActiveEntitlement, restorePurchases as restoreStorePurchases } from "@/src/services/purchases";
+import { LINKS, openLink } from "@/src/content/links";
 import { useAuth } from "@/src/store/auth";
 import { localizedReferencePrice, displayCurrency } from "@/src/content/pricing";
 import { REPORTS, reportDisplay, reportPrice } from "@/src/content/reports";
@@ -85,6 +86,24 @@ export default function Paywall() {
   const packPackage = findPackage(offering?.availablePackages || [], pack);
   const packReady = !!packPackage && !isPreviewSession();
   const qc = useQueryClient();
+  const [restoring, setRestoring] = useState(false);
+  // Store rules: every paywall needs a way to restore earlier purchases.
+  const restore = async () => {
+    setRestoring(true);
+    setPurchaseError(null);
+    try {
+      const info = await restoreStorePurchases(user?.id);
+      await api.post("/entitlement/sync", { rc_customer_id: user?.id }).catch(() => {});
+      await api.post("/questions/sync").catch(() => {});
+      await qc.invalidateQueries();
+      if (hasActiveEntitlement(info)) { haptics.success(); await refresh(); goBack(); }
+      else setPurchaseError("No earlier purchases were found for this store account.");
+    } catch (e: any) {
+      setPurchaseError(e?.message || "Purchases could not be restored. Please try again.");
+    } finally {
+      setRestoring(false);
+    }
+  };
   const buyPack = useMutation({
     mutationFn: async () => {
       setPurchaseError(null);
@@ -243,7 +262,19 @@ export default function Paywall() {
               <View key={label} style={styles.trustItem}><Icon name={icon} size={16} color={colors.violet} weight="duotone" /><AppText variant="caption" muted center style={{ fontSize: 11 }}>{label}</AppText></View>
             ))}
           </View>
-          <AppText variant="caption" muted center style={{ marginTop: 16, lineHeight: 18 }}>
+          {tab === "plus" ? (
+            <AppText variant="caption" muted center style={{ marginTop: 16, lineHeight: 18, fontSize: 11 }}>
+              AstroNow Plus renews automatically at the price shown unless cancelled at least 24 hours before the period ends. Payment is charged to your App Store or Google Play account. Manage or cancel any time in your store account settings.
+            </AppText>
+          ) : null}
+          <View style={styles.legalRow}>
+            <MotionPressable onPress={restore} disabled={restoring} hitSlop={8} testID="paywall-restore">
+              <AppText variant="caption" style={{ color: colors.violet }}>{restoring ? "Restoring…" : "Restore purchases"}</AppText>
+            </MotionPressable>
+            <MotionPressable onPress={() => openLink(LINKS.terms)} hitSlop={8}><AppText variant="caption" style={{ color: colors.violet }}>Terms of Use</AppText></MotionPressable>
+            <MotionPressable onPress={() => openLink(LINKS.privacy)} hitSlop={8}><AppText variant="caption" style={{ color: colors.violet }}>Privacy Policy</AppText></MotionPressable>
+          </View>
+          <AppText variant="caption" muted center style={{ marginTop: 12, lineHeight: 18 }}>
             {isPreviewSession() ? "This is a design preview. Real purchases need an iOS or Android development build and live store products." :
               !purchaseReady ? "Store products are not configured for this build yet. The amounts above are target prices, not an active offer." :
                 "Your store confirms the final local price before payment. Cancel through your App Store or Play Store account."}
@@ -379,6 +410,7 @@ function PlanCard({ selected, onPress, title, price, period, badge, save, note, 
 }
 
 const useStyles = makeStyles((colors) => ({
+  legalRow: { flexDirection: "row", justifyContent: "center", flexWrap: "wrap", gap: 18, marginTop: 14 },
   close: { alignSelf: "flex-end", width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary },
   headline: { color: colors.ivory, marginTop: 6, fontSize: 34, lineHeight: 40 },
   segment: { flexDirection: "row", marginTop: 22, padding: 4, borderRadius: 14, backgroundColor: "rgba(33,31,59,0.9)", borderWidth: 1, borderColor: colors.border },

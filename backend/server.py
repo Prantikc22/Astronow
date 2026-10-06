@@ -13,7 +13,7 @@ from typing import Any, Literal, Optional
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
 
@@ -27,6 +27,7 @@ import daily_reading
 import db
 import geocode
 import interpret
+import legal
 import prompts
 import supa_auth
 from astro import (compatibility, constants as C, dasha as dasha_mod, engine,
@@ -190,15 +191,35 @@ async def me(user: dict = User):
 async def delete_account(user: dict = User):
     uid = user["id"]
     if db.enabled():
-        now = datetime.now(timezone.utc)
-        for tbl in ("saved_profiles", "conversations", "tarot_readings", "vastu_homes",
-                    "compatibility_reports", "saved_items"):
-            await db.update(tbl, {"deleted_at": now}, filters={"user_id": uid, "deleted_at": None})
-        await db.delete("birth_charts", filters={"user_id": uid})
+        # Store rules require real deletion, not a soft-delete flag.
         await db.delete("messages", filters={"user_id": uid})
-        await db.delete("profiles", filters={"user_id": uid})
+        for tbl in ("conversations", "saved_profiles", "tarot_readings", "vastu_homes", "compatibility_reports",
+                    "saved_items", "analytics_events", "usage_events", "notification_prefs", "entitlements",
+                    "birth_charts", "profiles"):
+            try:
+                await db.delete(tbl, filters={"user_id": uid})
+            except Exception:  # noqa: BLE001 - one missing table must not block the rest
+                logger.exception("Account deletion failed for %s", tbl)
     await supa_auth.delete_user(uid)
     return {"deleted": True}
+
+
+# --------------------------------------------------------------------------- #
+# Public pages for the store listings
+# --------------------------------------------------------------------------- #
+@app.get("/privacy", response_class=HTMLResponse, include_in_schema=False)
+async def privacy_page():
+    return legal.privacy()
+
+
+@app.get("/terms", response_class=HTMLResponse, include_in_schema=False)
+async def terms_page():
+    return legal.terms()
+
+
+@app.get("/delete-account", response_class=HTMLResponse, include_in_schema=False)
+async def delete_account_page():
+    return legal.delete_account()
 
 
 # --------------------------------------------------------------------------- #

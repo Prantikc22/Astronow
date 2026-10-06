@@ -2,21 +2,34 @@
   "expo": {
     "name": "AstroNow",
     "slug": "astronow",
-    "version": "1.0.3",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "astronow",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.prantik.astronow"
+      "bundleIdentifier": "com.prantik.astronow",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0A0A2A"
       },
-      "package": "com.prantik.astronow"
+      "package": "com.prantik.astronow",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -46,10 +59,25 @@
         {
           "color": "#D979A2"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AstroNow uses your photo library only when you choose a floor plan image for your Vastu report.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "da81e695-73a4-45ac-ad75-53f1ae165676"
+      }
+    },
+    "owner": "prantikc22"
   }
 }
