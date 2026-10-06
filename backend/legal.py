@@ -97,3 +97,19 @@ def delete_account() -> str:
 <h2>Subscriptions</h2>
 <p>Deleting your account does not cancel a store subscription. Cancel it in your App Store or Google Play subscription settings.</p>
 """)
+
+
+def support() -> str:
+    return _page("Support", f"""
+<p>Need help with AstroNow? Here are quick answers to common questions.</p>
+<h2>Signing in</h2>
+<p>Use your mobile number to get a one-time code by SMS, or sign in with email. If a code doesn't arrive, wait 30 seconds and tap Resend.</p>
+<h2>Subscriptions and purchases</h2>
+<p>AstroNow Plus, question packs and reports are bought through the App Store or Google Play. To restore an earlier purchase, open the paywall or Profile and tap <b>Restore purchases</b>. To cancel Plus, use your App Store or Google Play subscription settings. Refunds are handled by Apple or Google.</p>
+<h2>Readings</h2>
+<p>Readings are calculated from your birth date, time and place. If something looks off, check your birth details in Profile. Astrology is for reflection and guidance, not medical, legal or financial advice.</p>
+<h2>Your data</h2>
+<p>See our <a href="/privacy">Privacy Policy</a>, or <a href="/delete-account">delete your account</a>.</p>
+<h2>Contact</h2>
+<p>{_contact()}</p>
+""")

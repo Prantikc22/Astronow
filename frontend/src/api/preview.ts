@@ -79,6 +79,11 @@ export function isPreviewMode() {
   return process.env.EXPO_PUBLIC_PREVIEW_MODE === "1" && __DEV__;
 }
 
+// Dev-only: `?preview=1` starts a preview session on load, used to capture store screenshots.
+if (isPreviewMode() && typeof window !== "undefined" && window.location?.search?.includes("preview=1")) {
+  previewRuntime.__astronowPreviewSession = true;
+}
+
 export function setPreviewSession(active: boolean) {
   previewRuntime.__astronowPreviewSession = active && isPreviewMode();
 }

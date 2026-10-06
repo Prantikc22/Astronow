@@ -217,6 +217,11 @@ async def terms_page():
     return legal.terms()
 
 
+@app.get("/support", response_class=HTMLResponse, include_in_schema=False)
+async def support_page():
+    return legal.support()
+
+
 @app.get("/delete-account", response_class=HTMLResponse, include_in_schema=False)
 async def delete_account_page():
     return legal.delete_account()
