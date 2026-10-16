@@ -17,7 +17,7 @@ import { pop, rise, springs } from "@/src/motion";
 import { MotionPressable } from "@/src/components/MotionPressable";
 import { isPreviewSession } from "@/src/api/preview";
 import { useAppConfig } from "@/src/hooks";
-import { buyPackage, findPackage, getCurrentOffering, hasActiveEntitlement, restorePurchases as restoreStorePurchases } from "@/src/services/purchases";
+import { buyPackage, findPackage, getCurrentOffering, storeUnavailableMessage, hasActiveEntitlement, restorePurchases as restoreStorePurchases } from "@/src/services/purchases";
 import { LINKS, openLink } from "@/src/content/links";
 import { useAuth } from "@/src/store/auth";
 import { localizedReferencePrice, displayCurrency } from "@/src/content/pricing";
@@ -50,26 +50,29 @@ export default function Paywall() {
   const [selected, setSelected] = useState("annual");
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
-  const { data: offering } = useQuery({
+  const { data: offering, refetch: refetchOffering } = useQuery({
     queryKey: ["revenuecat-offering", user?.id],
     queryFn: () => getCurrentOffering(user?.id),
-    retry: false,
+    retry: 2,
   });
+  // A tap before the store has answered asks it again instead of doing nothing.
+  const resolvePackage = async (plan: string) => {
+    const current = offering ?? (await refetchOffering()).data;
+    const item = current ? findPackage(current.availablePackages, plan) : null;
+    if (!item) throw new Error(storeUnavailableMessage());
+    return item;
+  };
 
   // Reference plans (README pricing) keep the screen whole if /config is slow or offline.
   const products = config?.paywall?.products?.length ? config.paywall.products : FALLBACK_PLANS;
   const visible = products.filter((p: any) => p.id === "monthly" || p.id === "annual");
-  const selectedPackage = offering ? findPackage(offering.availablePackages, selected) : null;
-  const purchaseReady = !!selectedPackage && !isPreviewSession();
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/today"));
 
   const purchase = useMutation({
     mutationFn: async () => {
       setPurchaseError(null);
-      const item = offering ? findPackage(offering.availablePackages, selected) : null;
-      if (!item) throw new Error("This plan is not available in the current RevenueCat offering yet.");
-      const info = await buyPackage(item);
+      const info = await buyPackage(await resolvePackage(selected));
       if (!hasActiveEntitlement(info)) throw new Error("The purchase completed without an active AstroNow Plus entitlement. Check RevenueCat product mapping.");
       return api.post("/entitlement/sync", { rc_customer_id: user?.id });
     },
@@ -84,7 +87,6 @@ export default function Paywall() {
   const packs = products.filter((p: any) => p.type === "questions");
   const [pack, setPack] = useState("questions_30");
   const packPackage = findPackage(offering?.availablePackages || [], pack);
-  const packReady = !!packPackage && !isPreviewSession();
   const qc = useQueryClient();
   const [restoring, setRestoring] = useState(false);
   // Store rules: every paywall needs a way to restore earlier purchases.
@@ -107,8 +109,7 @@ export default function Paywall() {
   const buyPack = useMutation({
     mutationFn: async () => {
       setPurchaseError(null);
-      if (!packPackage) throw new Error("This question pack is not available in the store yet.");
-      await buyPackage(packPackage);
+      await buyPackage(await resolvePackage(pack));
       return api.post("/questions/sync");
     },
     onSuccess: async () => { haptics.success(); await qc.invalidateQueries({ queryKey: ["usage"] }); goBack(); },
@@ -276,22 +277,21 @@ export default function Paywall() {
           </View>
           <AppText variant="caption" muted center style={{ marginTop: 12, lineHeight: 18 }}>
             {isPreviewSession() ? "This is a design preview. Real purchases need an iOS or Android development build and live store products." :
-              !purchaseReady ? "Store products are not configured for this build yet. The amounts above are target prices, not an active offer." :
-                "Your store confirms the final local price before payment. Cancel through your App Store or Play Store account."}
+              "Your store confirms the final local price before payment. Cancel through your App Store or Play Store account."}
           </AppText>
         </ScrollView>
 
         {tab === "plus" ? (
           <LinearGradient colors={["rgba(10,9,24,0)", "rgba(10,9,24,0.96)", "#0A0918"]} locations={[0, 0.35, 1]} style={[styles.dock, { paddingBottom: insets.bottom + 14 }]}>
-            <Button label={purchaseReady ? `Start Plus · ${selectedStorePrice}${selected === "annual" ? "/year" : "/month"}` : "Store purchase unavailable"}
-              iconRight={purchaseReady ? "arrow-right" : undefined} icon={purchaseReady ? undefined : "lock"} loading={purchase.isPending} disabled={!purchaseReady}
+            <Button label={`Start Plus · ${selectedStorePrice}${selected === "annual" ? "/year" : "/month"}`}
+              iconRight="arrow-right" loading={purchase.isPending} disabled={isPreviewSession()}
               onPress={() => purchase.mutate()} testID="paywall-continue" shine haptic="heavy" />
             {purchaseError ? <AppText variant="caption" center style={{ color: colors.coralSoft, marginTop: 8 }}>{purchaseError}</AppText> : null}
           </LinearGradient>
         ) : tab === "questions" ? (
           <LinearGradient colors={["rgba(10,9,24,0)", "rgba(10,9,24,0.96)", "#0A0918"]} locations={[0, 0.35, 1]} style={[styles.dock, { paddingBottom: insets.bottom + 14 }]}>
-            <Button label={packReady ? `Buy ${pack === "questions_30" ? 30 : 10} questions · ${packPackage?.product.priceString}` : "Store purchase unavailable"}
-              iconRight={packReady ? "arrow-right" : undefined} icon={packReady ? undefined : "lock"} loading={buyPack.isPending} disabled={!packReady}
+            <Button label={`Buy ${pack === "questions_30" ? 30 : 10} questions${packPackage ? ` · ${packPackage.product.priceString}` : ""}`}
+              iconRight="arrow-right" loading={buyPack.isPending} disabled={isPreviewSession()}
               onPress={() => buyPack.mutate()} testID="paywall-buy-pack" shine haptic="heavy" />
             {purchaseError ? <AppText variant="caption" center style={{ color: colors.coralSoft, marginTop: 8 }}>{purchaseError}</AppText> : null}
           </LinearGradient>

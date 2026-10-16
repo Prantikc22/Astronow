@@ -40,6 +40,12 @@ export async function getCustomerInfo(userId?: string | null) {
   return Purchases.getCustomerInfo();
 }
 
+/** Shown when the store returns no product for a tap, so the button never feels dead. */
+export function storeUnavailableMessage() {
+  const store = Platform.OS === "ios" ? "the App Store" : "Google Play";
+  return `We couldn't reach ${store} just now. Check your connection and that you're signed in to ${store}, then tap again.`;
+}
+
 export function findPackage(packages: PurchasesPackage[], plan: string) {
   const needle = plan.toLowerCase();
   return packages.find((item) =>

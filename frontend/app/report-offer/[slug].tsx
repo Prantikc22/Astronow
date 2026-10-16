@@ -11,7 +11,7 @@ import { Button } from "@/src/components/Button";
 import { Icon } from "@/src/components/Icon";
 import { Screen } from "@/src/components/Screen";
 import { REPORTS, reportDisplay, reportPrice } from "@/src/content/reports";
-import { buyPackage, findPackage, getCurrentOffering } from "@/src/services/purchases";
+import { buyPackage, findPackage, getCurrentOffering, storeUnavailableMessage } from "@/src/services/purchases";
 import { useAuth } from "@/src/store/auth";
 import { makeStyles, radii, useTheme } from "@/src/theme";
 
@@ -25,15 +25,18 @@ export default function ReportOffer() {
   const { user, profile } = useAuth();
   const display = reportDisplay(report, profile?.terminology_mode);
   const [error, setError] = useState<string | null>(null);
-  const { data: offering } = useQuery({ queryKey: ["revenuecat-offering", user?.id], queryFn: () => getCurrentOffering(user?.id), retry: false });
+  const { data: offering, refetch: refetchOffering } = useQuery({ queryKey: ["revenuecat-offering", user?.id], queryFn: () => getCurrentOffering(user?.id), retry: 2 });
   const productPackage = offering ? findPackage(offering.availablePackages, report.productId || report.slug) : null;
   const storePrice = productPackage?.product.priceString || reportPrice(report);
   const listPrice = reportPrice(report, true);
   const purchase = useMutation({
     mutationFn: async () => {
       setError(null);
-      if (!productPackage) throw new Error("This report product is not available in the current store offering yet.");
-      return buyPackage(productPackage);
+      // A tap before the store has answered asks it again instead of doing nothing.
+      const current = offering ?? (await refetchOffering()).data;
+      const item = current ? findPackage(current.availablePackages, report.productId || report.slug) : null;
+      if (!item) throw new Error(storeUnavailableMessage());
+      return buyPackage(item);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["customer-info", user?.id] });
@@ -46,7 +49,6 @@ export default function ReportOffer() {
       if (!e?.userCancelled) setError(e?.message || "The purchase could not be completed.");
     },
   });
-  const ready = !!productPackage && !isPreviewSession();
 
   return <Screen title="Premium report" subtitle="One-time purchase · yours to revisit" back>
     <LinearGradient colors={["#3B316F", "#211A47", "#141127"]} style={styles.hero}>
@@ -69,9 +71,9 @@ export default function ReportOffer() {
         "Permanent access for this locked birth profile",
       ].map((line) => <View key={line} style={styles.row}><View style={styles.check}><Icon name="check" size={12} color={colors.ink} /></View><AppText variant="body" style={{ flex: 1 }}>{line}</AppText></View>)}
     </View>
-    <Button label={ready ? `Unlock for ${storePrice}` : "Store product not configured"} icon={ready ? "arrow-right" : "lock"} disabled={!ready} loading={purchase.isPending} onPress={() => purchase.mutate()} style={{ marginTop: 18 }} />
+    <Button label={`Unlock for ${storePrice}`} icon="arrow-right" disabled={isPreviewSession()} loading={purchase.isPending} onPress={() => purchase.mutate()} style={{ marginTop: 18 }} />
     {error ? <AppText variant="caption" center style={{ color: colors.coralSoft, marginTop: 12 }}>{error}</AppText> : null}
-    <AppText variant="caption" muted center style={{ marginTop: 12 }}>{isPreviewSession() ? "Preview mode shows the complete purchase experience. Add the matching one-time product to RevenueCat to enable checkout." : !ready ? `Create the RevenueCat product “${report.productId}” and add it to the current offering.` : "Your App Store or Play Store confirms the final local price before payment."}</AppText>
+    <AppText variant="caption" muted center style={{ marginTop: 12 }}>{isPreviewSession() ? "Preview mode shows the complete purchase experience." : "Your App Store or Play Store confirms the final local price before payment."}</AppText>
   </Screen>;
 }
 
