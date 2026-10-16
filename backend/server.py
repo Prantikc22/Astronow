@@ -1479,6 +1479,15 @@ async def root():
             "persistence": db.enabled(), "ai": config.AI_ENABLED}
 
 
+@api.get("/keepalive")
+async def keepalive():
+    """Daily Vercel cron: a tiny real query so Supabase never pauses the project for inactivity."""
+    if not db.enabled():
+        return {"ok": True, "db": False}
+    await db.select("app_config", "key", limit=1)
+    return {"ok": True, "db": True}
+
+
 app.include_router(api)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=config.CORS_ORIGINS,
                    allow_methods=["*"], allow_headers=["*"])
