@@ -114,7 +114,7 @@ async def get_user_from_token(token: str) -> dict:
         # dedicated accounts (REVIEW_EMAILS) skip the mobile-number step.
         reviewer = bool(email) and email.lower() in config.REVIEW_EMAILS
         user = {"id": u["id"], "email": email, "first_name": meta.get("first_name"), "phone": phone,
-                "phone_verified": reviewer or bool(u.get("phone_confirmed_at") or meta.get("phone_verified"))}
+                "phone_verified": reviewer or not config.PHONE_LOGIN_ENABLED or bool(u.get("phone_confirmed_at") or meta.get("phone_verified"))}
         _token_cache[token] = (user, now + _CACHE_TTL)
         return user
 

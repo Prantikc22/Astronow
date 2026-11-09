@@ -637,6 +637,7 @@ async def get_config():
         "android_key": config.REVENUECAT_ANDROID_API_KEY,
     }
     cfg["ai_enabled"] = config.AI_ENABLED
+    cfg["phone_login_enabled"] = config.PHONE_LOGIN_ENABLED
     cfg["persistence_enabled"] = db.enabled()
     cfg.pop("premium_tiers", None)
     _cfg_cache = (cfg, time.monotonic() + 60.0)

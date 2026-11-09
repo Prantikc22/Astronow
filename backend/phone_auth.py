@@ -101,6 +101,8 @@ def _rate_limit(key: str, limit: int, window: float) -> None:
 
 
 async def send_code(country_code: str, number: str, client_ip: str) -> dict:
+    if not config.PHONE_LOGIN_ENABLED:
+        raise HTTPException(503, "Mobile sign-in is paused for now. Please continue with email.")
     if not configured():
         raise HTTPException(503, "Mobile sign-in is not configured on the server.")
     cc, digits, e164 = normalize(country_code, number)

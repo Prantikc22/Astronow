@@ -30,6 +30,8 @@ GOOGLE_PLACES_API_KEY = _get("GOOGLE_PLACES_API_KEY")
 
 REVENUECAT_IOS_API_KEY = _get("REVENUECAT_IOS_API_KEY")
 # Store-review accounts that skip mobile verification (comma-separated emails).
+# Mobile (SMS code) sign-in. Off: no code requests, and nobody is asked to verify a mobile number.
+PHONE_LOGIN_ENABLED = _get("PHONE_LOGIN_ENABLED", "false").strip().lower() in ("1", "true", "yes")
 REVIEW_EMAILS = {e.strip().lower() for e in _get("REVIEW_EMAILS", "demo@astronow.com").split(",") if e.strip()}
 REVENUECAT_ANDROID_API_KEY = _get("REVENUECAT_ANDROID_API_KEY")
 

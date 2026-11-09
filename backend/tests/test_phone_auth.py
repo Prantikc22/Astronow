@@ -36,6 +36,7 @@ def fresh(monkeypatch):
     phone_auth._send_log.clear()
     monkeypatch.setattr(phone_auth, "MC_CUSTOMER", "C-TEST")
     monkeypatch.setattr(phone_auth, "MC_TOKEN", "tok")
+    monkeypatch.setattr(phone_auth.config, "PHONE_LOGIN_ENABLED", True)
     fake = FakeDB()
     monkeypatch.setattr(phone_auth, "db", fake)
     return fake
@@ -125,3 +126,10 @@ def test_new_number_creates_one_account_then_reuses_it(monkeypatch, fresh):
     assert first["is_new"] and first["access_token"] == "a"
     second = run(phone_auth.sign_in("+919876543210"))
     assert not second["is_new"] and len(created) == 1  # same number, same account
+
+
+def test_paused_mobile_login_refuses_codes(monkeypatch):
+    monkeypatch.setattr(phone_auth.config, "PHONE_LOGIN_ENABLED", False)
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(phone_auth.send_code("91", "9876543210", "1.2.3.4"))
+    assert e.value.status_code == 503 and "email" in e.value.detail

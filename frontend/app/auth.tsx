@@ -18,6 +18,7 @@ import { TactileButton } from "@/src/components/TactileButton";
 import { TextField } from "@/src/components/TextField";
 import { countryByIso, defaultCountryIso } from "@/src/content/countries";
 import { LINKS, openLink } from "@/src/content/links";
+import { useAppConfig } from "@/src/hooks";
 import { useI18n } from "@/src/i18n";
 import { useAuth } from "@/src/store/auth";
 import { fonts, makeStyles, useTheme } from "@/src/theme";
@@ -56,6 +57,9 @@ export default function AuthScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const googleReady = process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED === "1";
+  // The server can pause SMS sign-in (e.g. when the SMS provider is unavailable).
+  const { data: appConfig } = useAppConfig();
+  const phoneLogin = appConfig?.phone_login_enabled !== false;
   const [enterAt] = useState(() => splashRemaining());
 
   const go = (next: Step, isBack = false) => {
@@ -199,7 +203,7 @@ export default function AuthScreen() {
           </View>
 
           <Animated.View entering={FadeInUp.delay(enterAt + 900).duration(520).easing(ease)} style={{ gap: 12, marginTop: 22 }}>
-            <TactileButton label="Continue with mobile" icon="phone" onPress={() => go("phone")} testID="auth-start-phone" />
+            {phoneLogin ? <TactileButton label="Continue with mobile" icon="phone" onPress={() => go("phone")} testID="auth-start-phone" /> : null}
             {googleReady ? (
               <View style={{ flexDirection: "row", gap: 12 }}>
                 <TactileButton tone="dark" label="Google" style={{ flex: 1 }} onPress={google} testID="auth-google" haptic="light"
@@ -207,7 +211,7 @@ export default function AuthScreen() {
                 <TactileButton tone="dark" label="Email" icon="mail" style={{ flex: 1 }} onPress={() => go("email")} testID="auth-start-email" haptic="light" />
               </View>
             ) : (
-              <TactileButton tone="dark" label="Continue with email" icon="mail" onPress={() => go("email")} testID="auth-start-email" haptic="light" />
+              <TactileButton tone={phoneLogin ? "dark" : "gold"} label="Continue with email" icon="mail" onPress={() => go("email")} testID="auth-start-email" haptic="light" />
             )}
             {messages}
             {isPreviewMode() ? (
