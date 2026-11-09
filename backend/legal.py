@@ -7,7 +7,7 @@ import html
 import os
 from datetime import date
 
-UPDATED = date(2026, 10, 6).strftime("%-d %B %Y")
+UPDATED = date(2026, 11, 9).strftime("%-d %B %Y")
 
 
 def _contact() -> str:
@@ -42,11 +42,16 @@ def privacy() -> str:
 </ul>
 <h2>How we use it</h2>
 <p>To create your account, calculate your chart, write your readings and reports, answer your questions, send the reminders you turn on, and keep the service secure (for example, limiting how many sign-in codes can be requested).</p>
+<h2>AI-written readings (only with your permission)</h2>
+<p>Your daily reading, reports, Vastu advice and the 24x7 Astrologer's answers are written by an AI model. Before anything is sent, the app asks for your permission and explains what is shared. If you say no, AstroNow still works and shows readings calculated on our own servers, without AI.</p>
+<p><b>What is sent:</b> your first name, your birth date, time and place and the chart calculated from them, the questions you type to the 24x7 Astrologer, your reading language, and a floor-plan photo only if you upload one for Vastu. We never send your phone number, email address or payment details.</p>
+<p><b>Who receives it:</b> OpenRouter, Inc. (United States), which passes the request to the DeepSeek language model hosted by OpenRouter's model providers. They process it to write your reading and send the text back to us.</p>
+<p><b>Your choice:</b> you can turn AI-written readings on or off at any time in Profile, then AI-written readings. Turning it off stops all new data from being sent.</p>
 <h2>Who processes it for us</h2>
 <ul>
 <li>Supabase: account sign-in and database hosting.</li>
 <li>Vercel: hosting for our servers.</li>
-<li>OpenRouter and the AI model providers it routes to: writing readings and answers. We send your chart details and your question, not your phone number or email.</li>
+<li>OpenRouter and the DeepSeek model it routes to: writing readings and answers, only after you allow it (see above).</li>
 <li>Message Central: sending sign-in codes by SMS.</li>
 <li>RevenueCat, Apple and Google: managing purchases and subscriptions.</li>
 <li>Google Places: finding your birthplace as you type.</li>

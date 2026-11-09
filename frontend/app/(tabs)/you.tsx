@@ -119,6 +119,7 @@ export default function You() {
     { icon: "lock", label: "Birth details", value: birthProfile?.changes_remaining > 0 ? "1 correction left" : "Locked", onPress: birthProfile?.changes_remaining > 0 ? () => router.push("/onboarding?mode=correction" as any) : undefined },
     { icon: "book-open", label: "Astrology terminology", value: TERM_LABELS[profile?.terminology_mode || "both"], onPress: () => setPicker("terms") },
     { icon: "globe", label: "Reading language", value: readingLanguageName(profile?.language), onPress: () => setPicker("language") },
+    { icon: "sparkle", label: "AI-written readings", value: profile?.ai_consent_at ? "On" : "Off", onPress: () => router.push("/ai-consent" as any) },
     { icon: "bell", label: "Notifications", onPress: () => router.push("/notifications" as any) },
     { icon: "gift", label: "Invite friends", value: "Earn questions", onPress: () => router.push("/invite" as any) },
     { icon: "refresh-cw", label: "Restore purchases", onPress: restore },

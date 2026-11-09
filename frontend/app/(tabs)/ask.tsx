@@ -9,6 +9,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api, ApiError, streamChat } from "@/src/api/client";
+import { isPreviewSession } from "@/src/api/preview";
 import { AppText } from "@/src/components/AppText";
 import { CosmicBackground } from "@/src/components/CosmicBackground";
 import { Icon, type FeatherName } from "@/src/components/Icon";
@@ -86,6 +87,11 @@ export default function Ask() {
   const send = async (text: string) => {
     const content = text.trim();
     if (!content || busy) return;
+    // Questions go to the AI provider, so ask first if the user hasn't allowed it.
+    if (!isPreviewSession() && !profile?.ai_consent_at) {
+      router.push("/ai-consent" as any);
+      return;
+    }
     setInput("");
     setBusy(true);
     setMessages((current) => [...current, { role: "user", content }, { role: "assistant", content: "" }]);

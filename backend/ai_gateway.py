@@ -7,6 +7,7 @@ provider is not configured.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import logging
 from typing import AsyncGenerator, Optional
@@ -22,6 +23,39 @@ _URL = "https://openrouter.ai/api/v1/chat/completions"
 
 class AIUnavailable(Exception):
     pass
+
+
+# Users must opt in before any of their data reaches the AI provider (App Store 5.1.1/5.1.2).
+# Enforced for app builds that ship the consent screen (they send X-AstroNow-Consent).
+consent_required: contextvars.ContextVar[bool] = contextvars.ContextVar("consent_required", default=False)
+_consent_cache: dict[str, tuple[bool, float]] = {}
+_CONSENT_TTL = 60.0
+
+
+CONSENT_KIND = "ai_consent"
+
+
+async def consent_given_at(user_id: str) -> Optional[str]:
+    row = await db.one("saved_items", "payload", filters={"user_id": user_id, "kind": CONSENT_KIND, "deleted_at": None})
+    return ((row or {}).get("payload") or {}).get("granted_at") if row else None
+
+
+def forget_consent(user_id: str) -> None:
+    _consent_cache.pop(user_id, None)
+
+
+async def _require_consent(user_id: Optional[str]) -> None:
+    if not user_id or not db.enabled() or not consent_required.get():
+        return
+    now = asyncio.get_event_loop().time()
+    cached = _consent_cache.get(user_id)
+    if cached and cached[1] > now:
+        allowed = cached[0]
+    else:
+        allowed = await consent_given_at(user_id) is not None
+        _consent_cache[user_id] = (allowed, now + _CONSENT_TTL)
+    if not allowed:
+        raise AIUnavailable()
 
 
 _http: Optional[httpx.AsyncClient] = None
@@ -68,6 +102,7 @@ async def generate(system: str, user: str, tier: str = "standard",
                    temperature: float = 0.7, images: Optional[list[str]] = None) -> str:
     if not config.AI_ENABLED:
         raise AIUnavailable()
+    await _require_consent(user_id)
     model = _model("vision" if images else tier)
     content: object = user
     if images:
@@ -95,6 +130,7 @@ async def generate_json(system: str, user: str, tier: str = "deep",
                         images: Optional[list[str]] = None, retries: int = 1) -> dict:
     if not config.AI_ENABLED:
         raise AIUnavailable()
+    await _require_consent(user_id)
     model = _model("vision" if images else tier)
     content: object = user
     if images:
@@ -141,6 +177,7 @@ async def stream(system: str, messages: list[dict], tier: str = "standard",
     if the provider sends nothing, so the app never waits minutes."""
     if not config.AI_ENABLED:
         raise AIUnavailable()
+    await _require_consent(user_id)
     model = _model(tier)
     payload = {
         "model": model,

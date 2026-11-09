@@ -5,6 +5,9 @@ import { storage } from "@/src/utils/storage";
 import { isPreviewSession, previewRequest, previewStream } from "@/src/api/preview";
 import { supabase } from "@/src/services/supabase";
 
+// Builds with the AI data-sharing consent screen; the server only enforces consent for these.
+const CLIENT_HEADERS = { "X-AstroNow-Consent": "1" };
+
 const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api`;
 
 export const TOKEN_KEY = "cc_access_token";
@@ -63,7 +66,7 @@ async function request<T = any>(
   retried = false,
 ): Promise<T> {
   if (isPreviewSession()) return previewRequest(method, path, body) as Promise<T>;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...CLIENT_HEADERS };
   if (auth && accessToken) headers.Authorization = `Bearer ${accessToken}`;
   // Floor-plan reading can legitimately take a while; everything else should be quick.
   const controller = new AbortController();
@@ -136,6 +139,7 @@ export async function streamChat(
       headers: {
         "Content-Type": "application/json",
         Accept: "text/plain",
+        ...CLIENT_HEADERS,
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       body: JSON.stringify({ content }),

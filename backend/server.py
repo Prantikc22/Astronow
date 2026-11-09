@@ -89,7 +89,20 @@ async def get_profile(user_id: str, with_changes: bool = True) -> Optional[dict]
     if profile and with_changes:
         profile["birth_details_change_count"] = await db.count(
             "analytics_events", filters={"user_id": user_id, "name": "birth_profile_corrected"})
+    if profile:
+        profile["ai_consent_at"] = await ai_gateway.consent_given_at(user_id)
     return profile
+
+
+async def _set_ai_consent(user_id: str, granted: bool) -> None:
+    """Record or withdraw permission to send reading data to the AI provider."""
+    kind = ai_gateway.CONSENT_KIND
+    await db.delete("saved_items", filters={"user_id": user_id, "kind": kind})
+    if granted:
+        await db.insert("saved_items", {"user_id": user_id, "kind": kind,
+                                        "payload": {"granted_at": datetime.now(timezone.utc).isoformat()}})
+    ai_gateway.forget_consent(user_id)
+    await _track(user_id, "ai_consent", {"granted": granted})
 
 
 _ent_cache: dict[str, tuple[dict, float]] = {}
@@ -343,12 +356,16 @@ class ProfilePatch(BaseModel):
     relationship_status: Optional[str] = None
     interests: Optional[list[str]] = None
     first_name: Optional[str] = None
+    # True records consent to share reading data with the AI provider; False withdraws it.
+    ai_consent: Optional[bool] = None
 
 
 @api.patch("/profile")
 async def patch_profile(body: ProfilePatch, user: dict = User):
     _require_db()
-    fields = {k: v for k, v in body.dict().items() if v is not None}
+    fields = {k: v for k, v in body.dict().items() if v is not None and k != "ai_consent"}
+    if body.ai_consent is not None:
+        await _set_ai_consent(user["id"], body.ai_consent)
     if not fields:
         return await get_profile(user["id"])
     sets, vals = [], []
@@ -521,7 +538,7 @@ async def _today_payload(user_id: str, data: dict, profile: Optional[dict], name
     if not daily_reading.valid_reading(reading, language, require_categories=True):
         reading = daily_reading.fallback_reading(language)
         if await _claim(user_id, cache_key):
-            background.add_task(_generate_and_cache_daily, cache_key, user_id, language, request)
+            background.add_task(_with_consent_rule(_generate_and_cache_daily), cache_key, user_id, language, request)
         reading_status = "generating"
     else:
         reading_status = "ready"
@@ -923,8 +940,11 @@ async def ask_stream(cid: str, body: MessageIn, user: dict = User):
     msgs = [{"role": m["role"], "content": m["content"]} for m in reversed(history)]
     msgs.append({"role": "user", "content": body.content})
     msgs.insert(0, {"role": "user", "content": "CONTEXT:\n" + json.dumps(ctx, default=str)})
+    consent_required = ai_gateway.consent_required.get()
 
     async def gen():
+        # The body streams after the middleware returns, so carry the consent rule in explicitly.
+        ai_gateway.consent_required.set(consent_required)
         parts: list[str] = []
         try:
             async for chunk in ai_gateway.stream(prompts.chat_system_prompt((profile or {}).get("language") or "en"), msgs,
@@ -1430,7 +1450,7 @@ async def personal_report(slug: str, background: BackgroundTasks, user: dict = U
         ctx = _report_context(data, tr, data.get("numerology"))
         request = report_ai.report_prompt(slug, (profile or {}).get("first_name") or "friend",
                                           (profile or {}).get("terminology_mode", "both"), language, json.dumps(ctx, default=str))
-        background.add_task(_generate_report, cache_key, user["id"], slug, request)
+        background.add_task(_with_consent_rule(_generate_report), cache_key, user["id"], slug, request)
     return {"status": "generating"}
 
 
@@ -1486,6 +1506,22 @@ async def keepalive():
         return {"ok": True, "db": False}
     await db.select("app_config", "key", limit=1)
     return {"ok": True, "db": True}
+
+
+def _with_consent_rule(fn):
+    """Background work runs after the response, outside the request context; keep its consent rule."""
+    required = ai_gateway.consent_required.get()
+
+    async def run(*args):
+        ai_gateway.consent_required.set(required)
+        return await fn(*args)
+    return run
+
+
+@app.middleware("http")
+async def _consent_client(request: Request, call_next):
+    ai_gateway.consent_required.set(request.headers.get("x-astronow-consent") == "1")
+    return await call_next(request)
 
 
 app.include_router(api)

@@ -133,7 +133,8 @@ export default function Onboarding() {
       else await api.post("/onboarding", payload);
       await refresh();
       queryClient.invalidateQueries();
-      router.replace(isCorrection ? "/(tabs)/you" : "/(tabs)/today");
+      // New accounts are asked about AI-written readings before Today asks for one.
+      router.replace(isCorrection ? "/(tabs)/you" : profile?.ai_consent_at ? "/(tabs)/today" : "/ai-consent?next=today" as any);
     } catch (e: any) {
       setError(e?.message || "We couldn't generate your chart. Please try again.");
     } finally {
